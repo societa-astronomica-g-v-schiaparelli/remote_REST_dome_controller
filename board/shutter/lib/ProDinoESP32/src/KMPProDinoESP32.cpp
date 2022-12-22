@@ -64,7 +64,7 @@ const int OPTOIN_PINS[OPTOIN_COUNT] = { IN1PIN, IN2PIN, IN3PIN, IN4PIN };
 #define StatusLedPixelCount 1
 #define StatusLedPin 0
 #define StatusLedPixelNumber 0
-NeoPixelBus<NeoGrbFeature, NeoEsp32BitBang800KbpsMethod> _statusLed(StatusLedPixelCount, StatusLedPin);
+Adafruit_NeoPixel _pixel(StatusLedPixelCount, StatusLedPin, NEO_GRB + NEO_KHZ800);
 
 // W5500 pins.
 #define W5500ResetPin 12  // I12
@@ -114,13 +114,14 @@ HardwareSerial RS485Serial(1);
 HardwareSerial SerialModem(2);
 
 #define colorSaturation 32 // Max 255 but light is too sharp.
-RgbColor yellow(colorSaturation, colorSaturation, 0);
-RgbColor orange(colorSaturation, colorSaturation / 2, 0);
-RgbColor red(colorSaturation, 0, 0);
-RgbColor green(0, colorSaturation, 0);
-RgbColor blue(0, 0, colorSaturation);
-RgbColor white(colorSaturation);
-RgbColor black(0);
+
+uint32_t yellow = _pixel.Color(colorSaturation, colorSaturation, 0);
+uint32_t orange = _pixel.Color(colorSaturation, colorSaturation / 2, 0);
+uint32_t red = _pixel.Color(colorSaturation, 0, 0);
+uint32_t green = _pixel.Color(0, colorSaturation, 0);
+uint32_t blue = _pixel.Color(0, 0, colorSaturation);
+uint32_t white = _pixel.Color(colorSaturation, colorSaturation, colorSaturation);
+uint32_t black = _pixel.Color(0, 0, 0);
 
 KMPProDinoESP32Class KMPProDinoESP32;
 BoardType _board;
@@ -193,7 +194,7 @@ void KMPProDinoESP32Class::begin(BoardType board, bool startEthernet, bool start
 	}
 
 	// Status led.
-	_statusLed.Begin();
+	_pixel.begin();
 
 	// RS485 pin init.
 	pinMode(RS485Pin, OUTPUT);
@@ -343,15 +344,15 @@ void KMPProDinoESP32Class::restartEthernet()
 	digitalWrite(W5500ResetPin, HIGH);
 }
 
-RgbColor KMPProDinoESP32Class::getStatusLed()
+uint32_t KMPProDinoESP32Class::getStatusLed()
 {
-	return _statusLed.GetPixelColor(StatusLedPixelNumber);
+	return _pixel.getPixelColor(StatusLedPixelNumber);
 }
 
-void KMPProDinoESP32Class::setStatusLed(RgbColor color)
+void KMPProDinoESP32Class::setStatusLed(uint32_t color)
 {
-	_statusLed.SetPixelColor(StatusLedPixelNumber, color);
-	_statusLed.Show();
+	_pixel.setPixelColor(StatusLedPixelNumber, color);
+	_pixel.show();
 }
 
 //void KMPProDinoESP32Class::OnStatusLed()
@@ -361,11 +362,11 @@ void KMPProDinoESP32Class::setStatusLed(RgbColor color)
 
 void KMPProDinoESP32Class::offStatusLed()
 {
-	_statusLed.SetPixelColor(StatusLedPixelNumber, black);
-	_statusLed.Show();
+	_pixel.setPixelColor(StatusLedPixelNumber, black);
+	_pixel.show();
 }
 
-void KMPProDinoESP32Class::processStatusLed(RgbColor color, int blinkInterval)
+void KMPProDinoESP32Class::processStatusLed(uint32_t color, int blinkInterval)
 {
 	if (millis() > _blinkIntervalTimeout)
 	{
@@ -429,6 +430,17 @@ void KMPProDinoESP32Class::setAllRelaysOff()
 	setAllRelaysState(false);
 }
 
+uint8_t KMPProDinoESP32Class::getRelayState(void)
+{
+	uint8_t tState = (MCP23S08.GetPinState() & 0xf0) >> 4;
+	uint8_t tRet = 0;
+	if (tState & (1 << 0))tRet |= 1 << 3;
+	if (tState & (1 << 1))tRet |= 1 << 2;
+	if (tState & (1 << 2))tRet |= 1 << 1;
+	if (tState & (1 << 3))tRet |= 1 << 0;
+	return tRet;
+}
+
 bool KMPProDinoESP32Class::getRelayState(uint8_t relayNumber)
 {
 	// Check if relayNumber is out of range - return false.
@@ -448,6 +460,17 @@ bool KMPProDinoESP32Class::getRelayState(Relay relay)
 /* ----------------------------------------------------------------------- */
 /* Opto input methods. */
 /* ----------------------------------------------------------------------- */
+uint8_t KMPProDinoESP32Class::getOptoInState(void)
+{
+	uint8_t tState = ~MCP23S08.GetPinState();
+	uint8_t tRet = 0;
+	if (tState & (1 << 0))tRet |= 1 << 3;
+	if (tState & (1 << 1))tRet |= 1 << 2;
+	if (tState & (1 << 2))tRet |= 1 << 1;
+	if (tState & (1 << 3))tRet |= 1 << 0;
+	return tRet;
+}
+
 bool KMPProDinoESP32Class::getOptoInState(uint8_t optoInNumber)
 {
 	// Check if optoInNumber is out of range - return false.

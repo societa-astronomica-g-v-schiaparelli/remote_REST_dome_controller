@@ -33,16 +33,17 @@ int _cs;
 uint8_t  _expTxData[16]  __attribute__((aligned(4)));
 uint8_t  _expRxData[16]  __attribute__((aligned(4)));
 
+
+
 void MCP23S08Class::init(int cs)
 {
 	_cs = cs;
 	// Expander settings.
 	SPI.begin();
 	SPI.setHwCs(true);
-#ifndef ESP32
+
 	SPI.setFrequency(1000000);
 	SPI.setDataMode(SPI_MODE0);
-#endif // ESP32
 
 	pinMode(_cs, OUTPUT);
 	digitalWrite(_cs, HIGH);
@@ -94,6 +95,21 @@ bool MCP23S08Class::GetPinState(uint8_t pinNumber)
 	uint8_t registerData = ReadRegister(GPIO);
 
 	return registerData & (1 << pinNumber);
+}
+
+/**
+ * @brief Get a pins state.
+ *
+ * @param pinNumber The number of pin to be get.
+ *
+ * @return GPIO Reg
+ */
+uint8_t MCP23S08Class::GetPinState(void)
+{
+
+	uint8_t registerData = ReadRegister(GPIO);
+
+	return registerData;
 }
 
 /**

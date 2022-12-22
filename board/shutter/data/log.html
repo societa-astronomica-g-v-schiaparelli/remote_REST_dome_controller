@@ -5,7 +5,7 @@ https://github.com/societa-astronomica-g-v-schiaparelli/remote_REST_dome_control
 Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 SPDX-License-Identifier: MIT
 Copyright (c) 2020-2022, Società Astronomica G. V. Schiaparelli <https://www.astrogeo.va.it/>.
-Authors: Paolo Galli <paolo97gll@gmail.com>
+Authors: Paolo Galli <paolo.galli@astrogeo.va.it>
          Luca Ghirotto <luca.ghirotto@astrogeo.va.it>
 
 Permission is hereby  granted, free of charge, to any  person obtaining a copy
@@ -31,35 +31,33 @@ SOFTWARE.
 <html lang="en">
 
 <head>
-    <title>CM - Dome controller (webserial)</title>
-    <link rel="stylesheet" href="style.css" type="text/css" media="screen">
+    <title>Shutter controller (log)</title>
+    <link rel="stylesheet" href="css/style.css" type="text/css" media="screen">
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=0.86">
-    <script src="webserial.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="js-external/res.min.js"></script>
+    <script src="js-external/sa2.min.js"></script>
+    <link rel="stylesheet" href="css/sa2.min.css" type="text/css" media="screen">
+    <script src="js/log.js"></script>
 </head>
 
 <body onload="start();">
     <div class="segment">
-        <h2>DOME NAME</h2>
-        <h1>Dome controller</h1>
-        <h3>WebSerial</h3>
+        <h1>Shutter controller</h1>
+        <h3>Log</h3>
     </div>
 
-    <form>
-        <label id="msg" class="red" style="text-align: center;"><i>No communication.</i></label>
-    </form>
-
-    <textarea id="text" class="webserial" rows="20" readonly></textarea>
+    <textarea id="text" class="log" rows="20" readonly></textarea>
 
     <div class="row" style="width: 80%;margin-left: auto;margin-right: auto;">
-        <div class="column">
-            <input type="button" class="gray" value="Clear log" onclick="clearText();">
+        <div class="column" style="margin: 0 16px;">
+            <input type="button" class="gray" value="Clean log" onclick="clearText();">
         </div>
-        <div class="column">
+        <div class="column" style="margin: 0 16px;">
             <input id="follow-button" type="button" class="gray" value="Disable follow" onclick="toggleFollow();">
         </div>
-        <div class="column">
-            <input id="disable-log-button" type="button" class="gray" value="Toggle webserver log" onclick="toggleLog();">
+        <div class="column" style="margin: 0 16px;">
+            <input id="disable-log-button" type="button" class="gray" value="Toggle 'status' command log" onclick="toggleLog();">
         </div>
     </div>
 </body>

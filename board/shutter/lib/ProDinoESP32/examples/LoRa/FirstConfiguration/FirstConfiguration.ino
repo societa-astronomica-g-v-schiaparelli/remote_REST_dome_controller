@@ -49,7 +49,7 @@ void setup() {
   digitalWrite(LoRaResetPin, HIGH);
   delay(200);
 
-  SerialModem.begin(19200, SERIAL_8N1, LoRaRxPin, LoRaTxPin);
+  SerialModem.begin(19200, SERIAL_8N2, LoRaRxPin, LoRaTxPin);
 
   Serial.println("Welcome to MKRWAN1300/1310 first configuration sketch");
   Serial.println("Register to your favourite LoRa network and we are ready to go!");

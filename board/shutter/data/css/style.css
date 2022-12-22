@@ -5,7 +5,7 @@ https://github.com/societa-astronomica-g-v-schiaparelli/remote_REST_dome_control
 Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 SPDX-License-Identifier: MIT
 Copyright (c) 2020-2022, Società Astronomica G. V. Schiaparelli <https://www.astrogeo.va.it/>.
-Authors: Paolo Galli <paolo97gll@gmail.com>
+Authors: Paolo Galli <paolo.galli@astrogeo.va.it>
          Luca Ghirotto <luca.ghirotto@astrogeo.va.it>
 
 Permission is hereby  granted, free of charge, to any  person obtaining a copy
@@ -44,16 +44,23 @@ SOFTWARE.
 
 /* LAYOUT */
 
-body, html {
+body,
+html {
     background-color: var(--color-background);
 }
 
-body, p, input, select, textarea, button {
-    font-family: "Montserrat", sans-serif;
+body,
+p,
+input,
+select,
+textarea,
+button {
+    font-family: sans-serif;
     font-size: 16px;
 }
 
-div, p {
+div,
+p {
     color: var(--color-shadow);
     text-shadow: 1px 1px 1px var(--color-shadow-light);
 }
@@ -82,41 +89,42 @@ li {
     text-shadow: 1px 1px 1px var(--color-shadow-light);
 }
 
-li+li, li+ul, ul+li {
+li+li,
+li+ul,
+ul+li {
     margin-top: 15px;
 }
 
 form {
     margin: 0 auto;
     padding: 16px;
-    width: 320px;
-}
-
-@media screen and (max-width: 768px) {
-    form {
-        padding: 16px 0px;
-        width: '100%';
-    }
+    width: 90%;
+    min-width: 300px;
+    max-width: 350px;
 }
 
 .segment {
-    padding: 32px 0;
+    padding: 8px 0;
     text-align: center;
+    margin-left: 12px;
+    margin-right: 12px;
 }
 
 .row {
     display: flex;
     flex-direction: row;
     flex-wrap: wrap;
+    margin: 16px auto;
 }
 
 .column {
     flex: 25%;
-    margin-left: 20px;
-    margin-right: 20px;
 }
 
-button, input, input[type=button], textarea {
+button,
+input,
+input[type=button],
+textarea {
     background-color: var(--color-background);
     border-radius: 320px;
     border: 0;
@@ -126,9 +134,11 @@ button, input, input[type=button], textarea {
     outline: 0;
     padding: 16px;
     text-shadow: 1px 1px 1px var(--color-shadow-light);
+    white-space: pre-wrap;
 }
 
-input, textarea {
+input,
+textarea {
     -webkit-appearance: none;
     appearance: none;
     box-shadow: inset 2px 2px 5px var(--color-shadow), inset -5px -5px 10px var(--color-shadow-light);
@@ -141,19 +151,23 @@ input, textarea {
 /* Chrome, Safari, Edge, Opera */
 input::-webkit-outer-spin-button,
 input::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-/* Firefox */
-input[type=number] {
-  -moz-appearance: textfield;
+    -webkit-appearance: none;
+    margin: 0;
 }
 
-input:focus, textarea:focus {
+/* Firefox */
+@supports (-moz-appearance:none) {
+    input[type=number] {
+        -moz-appearance: textfield;
+    }
+}
+
+input:focus,
+textarea:focus {
     box-shadow: inset 1px 1px 2px var(--color-shadow), inset -1px -1px 2px var(--color-shadow-light);
 }
 
-textarea.webserial {
+textarea.log {
     font-size: 15px;
     border-radius: 15px;
     resize: none;
@@ -161,19 +175,19 @@ textarea.webserial {
     display: flex;
     margin-left: auto;
     margin-right: auto;
-    /* text-shadow: none; */
     font-weight: unset;
 }
 
-textarea.webserial:focus {
+textarea.log:focus {
     box-shadow: inset 2px 2px 5px var(--color-shadow), inset -5px -5px 10px var(--color-shadow-light);
 }
 
-::placeholder, ::placeholder {
+::placeholder {
     color: var(--color-shadow);
 }
 
-button, input[type=button] {
+button,
+input[type=button] {
     box-shadow: -4px -4px 12px var(--color-shadow-light), 4px 4px 12px var(--color-shadow);
     color: var(--color-text-gray-2);
     cursor: pointer;
@@ -183,32 +197,42 @@ button, input[type=button] {
     width: 100%;
 }
 
-button[disabled], input[disabled] {
+button[disabled],
+input[disabled][type=button] {
     opacity: 0.4;
     cursor: not-allowed;
 }
 
-button:enabled:hover, input:enabled[type=button]:hover {
+button:enabled:hover,
+input:enabled[type=button]:hover {
     box-shadow: -2px -2px 5px #FFF, 2px 2px 5px var(--color-shadow);
 }
 
-button:enabled:active, input:enabled[type=button]:active {
+button:enabled:active,
+input:enabled[type=button]:active {
     box-shadow: inset 1px 1px 2px var(--color-shadow), inset -1px -1px 2px #FFF;
 }
 
-.red, button.red, input[type=button].red {
+.red,
+button.red,
+input[type=button].red {
     color: #AE1100;
 }
 
-.orange, button.orange, input[type=button].orange {
+.orange,
+button.orange,
+input[type=button].orange {
     color: #CE9D32;
 }
 
-.green, button.green, input[type=button].green {
+.green,
+button.green,
+input[type=button].green {
     color: #009900;
 }
 
-.gray, button.gray, input[type=button].gray {
+button.gray,
+input[type=button].gray {
     color: var(--color-text-gray-1);
 }
 
@@ -224,7 +248,9 @@ button:enabled:active, input:enabled[type=button]:active {
     justify-content: center;
     margin-bottom: 24px;
     transition: all 0.2s ease-in-out;
-    width: 320px;
+    width: 100%;
+    min-width: 300px;
+    max-width: 350px;
 }
 
 .input-group {
@@ -238,65 +264,101 @@ button:enabled:active, input:enabled[type=button]:active {
 /* DARK MODE */
 
 @media (prefers-color-scheme: dark) {
-    body, html {
+
+    body,
+    html {
         background-color: var(--color-background-dark);
     }
-    div, p {
+
+    div,
+    p {
         color: var(--color-text-gray-1-dark);
         text-shadow: 1px 1px 1px var(--color-shadow-dark);
     }
+
     label {
         color: var(--color-text-gray-2-dark);
         text-shadow: 1px 1px 1px var(--color-shadow-dark);
     }
+
     textarea {
         color: var(--color-text-gray-2-dark);
     }
+
     ul {
         text-shadow: 1px 1px 1px var(--color-shadow-dark);
     }
+
     li {
         color: var(--color-text-gray-1-dark);
         text-shadow: 1px 1px 1px var(--color-shadow-dark);
     }
-    button, input, input[type=button], textarea {
+
+    button,
+    input,
+    input[type=button],
+    textarea {
         background-color: var(--color-background-dark);
         text-shadow: 1px 1px 1px var(--color-shadow-dark);
     }
-    input, textarea {
+
+    input,
+    textarea {
         box-shadow: inset 2px 2px 5px var(--color-shadow-dark), inset -5px -5px 10px var(--color-shadow-light-dark);
     }
-    input:focus, textarea:focus {
+
+    input:focus,
+    textarea:focus {
         box-shadow: inset 1px 1px 2px var(--color-shadow-dark), inset -1px -1px 2px var(--color-shadow-light-dark);
     }
-    textarea.webserial:focus {
+
+    textarea.log:focus {
         box-shadow: inset 2px 2px 5px var(--color-shadow-dark), inset -5px -5px 10px var(--color-shadow-light-dark);
     }
-    ::placeholder, ::placeholder {
+
+    ::placeholder {
         color: var(--color-text-gray-1-dark);
     }
-    button, input[type=button] {
+
+    button,
+    input[type=button] {
         box-shadow: -4px -4px 12px var(--color-shadow-light-dark), 4px 4px 12px var(--color-shadow-dark);
         color: var(--color-text-gray-2-dark);
     }
-    button:enabled:hover, input:enabled[type=button]:hover {
+
+    button:enabled:hover,
+    input:enabled[type=button]:hover {
         box-shadow: -2px -2px 5px var(--color-shadow-light-dark), 2px 2px 5px var(--color-shadow-dark);
     }
-    button:enabled:active, input:enabled[type=button]:active {
+
+    button:enabled:active,
+    input:enabled[type=button]:active {
         box-shadow: inset 1px 1px 2px var(--color-shadow-dark), inset -1px -1px 2px var(--color-shadow-light-dark);
     }
-    .red, button.red, input[type=button].red {
+
+    .red,
+    button.red,
+    input[type=button].red {
         color: #ad3427;
     }
-    .orange, button.orange, input[type=button].orange {
+
+    .orange,
+    button.orange,
+    input[type=button].orange {
         color: #AD8227;
     }
-    .green, button.green, input[type=button].green {
+
+    .green,
+    button.green,
+    input[type=button].green {
         color: #4fa74c;
     }
-    .gray, button.gray, input[type=button].gray {
+
+    button.gray,
+    input[type=button].gray {
         color: var(--color-text-gray-1-dark);
     }
+
     .box {
         box-shadow: -4px -4px 12px var(--color-shadow-light-dark), 4px 4px 12px var(--color-shadow-dark);
         color: var(--color-text-gray-2-dark);
