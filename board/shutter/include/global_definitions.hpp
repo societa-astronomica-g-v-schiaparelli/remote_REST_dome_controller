@@ -170,16 +170,16 @@ enum class ShutterStatus {
 //////////
 
 #define HOSTNAME "shutter-controller"
-#define WIFI_SSID "wifi_ssid"
-#define WIFI_PASSWORD "wifi_password"
+#define WIFI_SSID "wifi_ssid"         /* TODO put your wifi ssid */
+#define WIFI_PASSWORD "wifi_password" /* TODO put your wifi password */
 #define WIFI_CONNECTED (WiFi.status() == WL_CONNECTED)
 
-#define OTA_PASSWORD "ota_password"
+#define OTA_PASSWORD "ota_password" /* TODO put your OTA password */
 
 extern AsyncWebServer WebServer;
 extern AsyncEventSource SSELogger;
-#define WEBPAGE_LOGIN_USER "admin"
-#define WEBPAGE_LOGIN_PASSWORD "admin"
+#define WEBPAGE_LOGIN_USER "admin"     /* TODO put your webpage user */
+#define WEBPAGE_LOGIN_PASSWORD "admin" /* TODO put your webpage password */
 
 #define HTTP_REQUEST_TIMEOUT 5000
 struct httpResponseSummary {

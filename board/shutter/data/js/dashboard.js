@@ -28,7 +28,7 @@ SOFTWARE.
 */
 
 const DEBUG = false;
-var DEBUG_IP = "IP_address_here";
+var DEBUG_IP = "IP_address_here"; // TODO put your IP address here
 
 const UPDATE_TIME = 1000;
 var getStatus_interval;

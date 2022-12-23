@@ -35,8 +35,8 @@ SOFTWARE.
  * @brief Return true if unknown client IP, else false; used for web auth.
  */
 bool unknown_IP(const String &clientIP) {
-    return clientIP != "authorized_ip_1" &&
-           clientIP != "authorized_ip_2";
+    return clientIP != "authorized_ip_1" &&  // TODO put your authorized IP address here
+           clientIP != "authorized_ip_2";    // TODO put your authorized IP address here
 }
 
 //////////
