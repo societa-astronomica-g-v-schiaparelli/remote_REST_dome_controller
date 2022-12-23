@@ -1,129 +1,143 @@
-# Documentation
+# Shutter controller code: documentation
 
-⚠️ **WARNING**: need translation.
+- [Shutter controller code: documentation](#shutter-controller-code-documentation)
+  - [Folders and files description](#folders-and-files-description)
+  - [Hardware description](#hardware-description)
+  - [Operation and logic](#operation-and-logic)
+    - [State of the shutter and of the PLC](#state-of-the-shutter-and-of-the-plc)
+    - [Opening and closing](#opening-and-closing)
+      - [Automatic mode](#automatic-mode)
+      - [Manual mode](#manual-mode)
+    - [Alert states](#alert-states)
+      - [Hardware alert](#hardware-alert)
+      - [Network alert](#network-alert)
+    - [Automatic-manual control and user input](#automatic-manual-control-and-user-input)
+  - [Communication with the board](#communication-with-the-board)
+    - [API description](#api-description)
 
-Viene usata la PLC [KMP PRODINo ESP32 Ethernet v1](https://kmpelectronics.eu/products/prodino-esp32-ethernet-v1/) come server di controllo del movimento del vano.
+We use the [KMP PRODINo ESP32 Ethernet v1](https://kmpelectronics.eu/products/prodino-esp32-ethernet-v1/) as the controller for the shutter movement.
 
 ![KMP PRODINo ESP32 Ethernet v1](https://kmpelectronics.eu/wp-content/uploads/2019/11/ProDinoESP32_E_5.jpg)
 
-## Descrizione cartelle e file
+## Folders and files description
 
-- `data/`. File che andranno nella SPIFFS, tipicamente pagine web.
+- [`data/`](data/). Files that will go to the filesystem, i.e. web pages.
 
-  - `dashboard.html` e `dashboard.js`. Contengono l'html e il relativo codice javascript per la dashboard di controllo della board (comandi principali e avanzati, panoramica dello stato).
+- [`include/`](include/)
 
-  - `webserial.html` e `webserial.js`. Contengono l'html e il relativo codice javascript per l'interfaccia WebSerial (vedi dopo).
+  - [`global_definitions.hpp`](include/global_definitions.hpp). Contains global variables definitions and global `#define` needed in the code. The variables are declared as `extern` in order to be able to use them in the various files located in the `src` folder; they are initialized in the `src/main.cpp` file. All imports are located here.
 
-  - `style.css`. Contiene le regole di formattazione comuni alle pagine web.
+- [`lib/`](lib/)
 
-- `examples/`. Esempi e prove varie. Fa tenerezza.
+  - [`ProDinoESP32`](lib/ProDinoESP32), version 2.0.0 commit 8ffb407, [official repository](https://github.com/kmpelectronics/ProDinoESP32). Library to use board features such as relay, optoin, ethernet, ...
 
-- `include/`
+- [`src/`](src/)
 
-  - `global_definitions.h`. Contiene le definizione delle variabili globali e le `#define` globali che servono nel codice. Le variabili sono dichiarate come `extern` per poterle usare nel vari file che si trovano nella cartella `src`; sono invece inizializzate nel file `src/main.cpp`. Tutti gli import sono inseriti qui.
+  - [`auxiliary_functions.cpp`](src/auxiliary_functions.cpp). Contains all the auxiliary functions, such as Wi-Fi connection, LED flashing, ...
 
-- `lib/`
+  - [`main.cpp`](src/main.cpp). Contains the core of the code: initialization of the variables, setup, loop and any secondary tasks.
 
-  - `ProDinoESP32`, versione 1.1.3, [repository ufficiale](https://github.com/kmpelectronics/Arduino/tree/master/ProDinoESP32). Libreria per usare le funzionalità della scheda, come relay, optoin, ethernet, ...
+  - [`web_server.cpp`](src/web_server.cpp). Contains the web server with all its routes.
 
-  - `WebSerial`, versione 1.0.0, ispirata a [questa](https://github.com/ayushsharma82/WebSerial) ma pesantemente modificata per migliorarne le funzionalità. Emula una interfaccia seriale mediante una websocket per permettere debugging da remoto.
+## Hardware description
 
-- `src/`
+The purchased PRODINo is equipped with an ethernet port, initially used as the primary communication port. After extensive tests and stress tests, it turned out that the Wi-Fi is more stable and responsive.
 
-  - `auxiliary_functions.cpp`. Contiene le funzioni ausiliarie, come la connessione al Wi-Fi, il lampeggio del led, ...
+## Operation and logic
 
-  - `main.cpp`. Contiene il core del codice: inizializzazione delle variabili, setup, loop ed eventuali task secondari.
+### State of the shutter and of the PLC
 
-  - `web_server.cpp`. Contiene il web server con tutte le sue chiamate.
+The global status can be checked from the web page or with the `status` command.
 
-## Funzionamento e logica
+The board determines the state of the shutter using the limit switch sensors and the state of the relays in the following order:
 
-### Stato del vano e della PLC
+- If one of the two relays is on, the shutter is considered to be opening or closing based on which relay is working. This mode only works if the shutter is in automatic mode, as in manual mode the relays are bypassed and there is no way to know if the shutter is moving or not.
 
-Lo stato globale può essere controllato dalla pagina web o con il comando `status`.
+- If one of the two limit switches is triggered and the relays are off, the shutter is considered closed or opened based on which limit switch is triggered.
 
-La board determina lo stato del vano mediante i sensori di finecorsa e lo stato di accensione dei relè nel seguente ordine:
+- If none of the limit switches are triggered and the relays are off, the shutter is considered partially opened.
 
-- Se uno dei due relè è acceso, il vano viene considerato in apertura o in chiusura in base a quale relè sta funzionando. Questa modalità funziona esclusivamente se il vano è in modalità automatica, in quanto in modalità manuale i relè vengono bypassati e non c'è modo di sapere se il vano si stia muovendo o no.
+### Opening and closing
 
-- Se uno dei due finecorsa è chiuso e i relè sono spenti, il vano viene considerato chiuso o aperto in base a quale finecorsa è chiuso.
+#### Automatic mode
 
-- Se nessun finecorsa è chiuso e i relè sono spenti, il vano viene considerato parzialmente aperto.
+The opening and closing operations of the shutter are controlled with the `open` and `close` commands. These requests only turn on the relay. The motion state check is done in the loop. When one of the two limit switch sensors (opening or closing) is reached, the board waits a few seconds to complete the opening/closing and then switches off the relays.
 
-### Apertura e chiusura
+To early stop the motion, use the `abort` command.
 
-L'apertura e la chiusura del vano vengono comandate con i comandi `open` e `close`. Queste richieste hanno il solo compito di accendere i relè di controllo dei motori. Il controllo successivo dello stato del moto viene svolto nel loop. Quando uno dei due sensori di finecorsa (apertura o chiusura) viene raggiunto, la board attende qualche secondo per completare l'apertura/chiusura e poi spegne i relè.
+If you give the `open` command while the shutter is closing, it stops and then opens (and vice versa).
 
-Per fermare in anticipo il movimento, usare il comando `abort`.
+A software lock can be activated to reject shutter change state commands.
 
-Dare un comando di apertura mentre il vano è in chiusura ferma il vano e lo apre (e viceversa).
+#### Manual mode
 
-### Stato di allerta del vano
+The shutter is controlled by buttons.
 
-#### Allerta hardware
+### Alert states
 
-Lo stato di allerta hardware prevede il blocco totale del controllo remoto di apertura e chiusura del vano, che permane anche in caso di riavvio della board o caricamento di un nuovo codice in quanto lo stato viene salvato nella EEPROM.
+#### Hardware alert
 
-Se la board rileva che i relè rimangono accesi per più tempo del necessario (circa 20 secondi, il tempo di una apertura o chiusura totale), allora ferma tutto ed entra in stato di allerta; in tal caso, infatti, è molto probabile che si siano verificati problemi meccanici al vano (come la rottura di un anello delle catene di trasmissione dei motori) e quindi è vitale fermare i motori; nota che tuttavia condizioni avverse come la presenza di ghiaccio possono rallentare il movimento del vano, causando lo scatto dello stato di allerta (non dovrebbe succedere perché i tempi sono stati calibrati, ma non si sa mai).
+The hardware alert state completely blocks the shutter opening and closing remote control and persists even in the event of board restart or flashing of a new code as the state is saved in the EEPROM.
 
-Lo stato di allerta viene attivato anche se il vano non disattiva il finecorsa di chiusura mentre si apre (o viceversa) entro qualche secondo.
+If the board detects that the relays remain on for longer than necessary (about 20 seconds, the time for a total opening or closing), then it stops everything and enters an alert state; in this case, in fact, it is very probable that mechanical problems have occurred in the shutter (such as a damage of a link in the engine transmission chains) and therefore it is vital to stop the engines; however, note that adverse conditions such as the presence of ice can slow down the movement of the shutter, causing the alert to go on (it shouldn't happen because the times have been calibrated, but you never know).
 
-Lo stato di allerta può essere controllato con il comando `status` e l'unico modo per resettarlo è usare il comando `reset-alert-status`. È essenziale che lo stato di allerta venga resettato _solo dopo attenti controlli sullo stato della meccanica del vano_.
+The alert status is activated even if the shutter does not deactivate the closing limit switch while it opens (or vice versa) within a few seconds.
 
-#### Allerta di rete
+The alert status can be checked with the `status` command and the only way to reset it is to use the `reset-alert-status` command. It is essential that the alert status is reset _only after careful checks on the state of the shutter mechanics_.
 
-Se il vano rileva l'assenza di rete internet (sia LAN che WAN) per più di dieci minuti, entra il allerta network: questo stato prevede il blocco totale del controllo remoto di apertura e chiusura del vano, nonché la chiusura immediata del vano nel caso questo sia aperto. La rilevazione di rete viene fatta mediante un ping a `www.google.com`.
+#### Network alert
 
-Questo stato di allerta è necessario per garantire la sicurezza della strumentazione in cupola nel caso in cui venga a mancare internet nel bel mezzo a una sessione di osservazione remota. Per questo motivo, non è possibile fare l'override di questo comando o resettarne manualmente lo stato.
+If the shutter detects the absence of the internet network (LAN or WAN) for more than ten minutes, the network alert goes on: this status completely blocks the shutter opening and closing remote control, and causes the immediate closure of the shutter. Network discovery is done by pinging `www.google.com`.
 
-È comunque possibile muovere il vano ponendolo in modalità manuale e muovendolo con i pulsanti sul quadro. _Attenzione, il controllo dello stato di allerta è continuo: se si apre il vano in manuale e poi si mette l'interruttore in automatico, il vano si chiuderà nuovamente._
+This state of alert is necessary to ensure the safety of the instrumentation in the dome in the event of an internet failure in the middle of a remote observing session. For this reason, it is not possible to override this command or manually reset its state.
 
-Esiste in realtà un trick per eseguire l'override, che necessita di giocare con il restart della board e poi rimuovere l'alimentazione alla blindo sbarra, ma è _estremamente sconsigliato_ e la sua esistenza non deve uscire da questo README.
+However, it is possible to move the shutter by placing it in manual mode and moving it with the buttons on the panel. _Attention, the alert status check is continuous: if the shutter is opened manually and then the switch is set to automatic, the shutter will close again._
 
-### Controllo automatico-manuale e input utente
+### Automatic-manual control and user input
 
-La cupola è controllabile da remoto solamente se l'interruttore automatico-manuale è posizionato su "automatico": in questo caso, i comandi manuali vengono bloccati, permettendo unicamente il controllo remoto. Viceversa, se l'interruttore si trova su "manuale", il controllo remoto con la board viene bloccato, permettendo solo il controllo manuale con i pulsanti. La board monitora lo stato dell'interruttore usando un ingresso ottico.
+The dome can be controlled remotely only if the automatic-manual switch is positioned on "automatic": in this case, the manual controls are blocked, allowing only remote control. If the switch is in the "manual" position, remote control with the board is blocked, allowing only manual control with the buttons. The board monitors the state of the switch using an optical input.
 
-## Comunicazione con la board
+## Communication with the board
 
-È possibile interagire con la board usando:
+You can interact with the board using:
 
-- **Pagina web** alla route principale `/`; autenticazione richiesta.
+- **Web page** at the `/` route; authentication required.
+- **API** at the `/api` route.
 
-- **Seriale web** alla route `/webserial`; autenticazione richiesta.
+The board log is at the `/log` route.
 
-- **API** alla route `/api`.
+### API description
 
-### Descrizione API
+The APIs are accessible through http GET requests of the type:
 
-Le API sono accessibili mediante richieste http GET del tipo:
-
-```http
+```
 /api?json={"cmd":"command"}
 ```
 
-dove i possibili valori di `command` sono:
+where the possible values of `command` are:
 
-- Funzioni shutter-related:
+- Shutter related functions:
 
-  - `abort`: interrompe il movimento.
-  - `close`: comando di chiusura del vano.
-  - `open`: comando di apertura del vano.
+  - `abort`: stops the movement.
+  - `close`: close the shutter.
+  - `open`: open the shutter.
+  - `lock-movement`: software lock of the shutter movement.
+  - `unlock-movement`: software unlock of the shutter movement.
 
-- Gestione board:
+- Board management:
 
-  - `reset-alert-status`: resetta lo stato di allerta del vano a `false`.
-  - `reset-EEPROM`: resetta la EEPROM e riavvia la PLC per rendere effettivo il reset.
-  - `restart`: riavvia la PLC (graceful restart).
-  - `force-restart`: riavvia la PLC (hard restart).
-  - `status`: restituisce lo stato del vano.
+  - `reset-alert-status`: reset the alert status of the shutter to `false`.
+  - `reset-EEPROM`: reset the EEPROM and restart the board to make the reset effective.
+  - `restart`: restart the board (graceful restart).
+  - `force-restart`: restart the board (hard restart).
+  - `server-logging-toggle`: toggle webserver logging state.
+  - `server-logging-status`: return the webserver log status.
 
-- Easter egg:
+- Status:
 
-  - `cit1`: una citazione simpatica (tipo: `text/plain`).
-  - `cit2`: un'altra citazione simpatica (tipo: `text/plain`).
+  - `status`: board status json.
 
-La risposta (ad eccezione dei casi indicati) sarà in JSON del tipo:
+The response (except for the cases indicated) will be in JSON of the type:
 
 ```json
 {
@@ -131,50 +145,65 @@ La risposta (ad eccezione dei casi indicati) sarà in JSON del tipo:
 }
 ```
 
-dove i possibili valori di `message` sono:
+where the possible values of `message` are:
 
-- `done` nel caso di richiesta andata a buon fine.
-- un messaggio riportante il tipo di errore riscontrato.
+- `done` in case of successful request.
+- a message reporting the type of error found.
 
-La riposta del comando `status` è invece più estesa e si riporta qui un esempio:
+The response of the `status` command is instead more extensive and an example is shown here:
 
 ```json
 {
-    "rsp":{
-        "firmware-version":"v0.1.1",
-        "uptime":"0 days, 0 hours, 17 minutes, 36 seconds",
-        "dome-azimuth":90,
-        "target-azimuth":90,
-        "movement-status":false,
-        "in-park":true,
-        "finding-park":false,
-        "finding-zero":false,
-        "relay":{
-            "cw-motor":false,
-            "ccw-motor":false,
-            "switchboard":false
-        },
-        "optoin":{
-            "auto":true,
-            "switchboard-status":true,
-            "auto-ignition":false,
-            "ac-presence":true,
-            "manual-cw-button":false,
-            "manual-ccw-button":false,
-            "manual-ignition":false
-        },
-        "wifi":{
-            "hostname":"CM-dome",
-            "mac-address":"C8:2B:96:A0:90:40"
-        }
+  "rsp": {
+    "firmware-version": "v1.0.3",
+    "uptime": "0 days, 0 hours, 0 minutes, 21 seconds",
+    "shutter-status": 1,
+    "movement-status": false,
+    "lock-movement": false,
+    "network-status": true,
+    "alert": {
+      "hardware": {
+        "status": false,
+        "description": ""
+      },
+      "network": {
+        "status": false,
+        "security-procedures": 0
+      }
+    },
+    "relay": {
+      "list": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "opening-motor": false,
+      "closing-motor": false
+    },
+    "optoin": {
+      "list": [
+        true,
+        true,
+        false,
+        false
+      ],
+      "auto": true,
+      "closed-sensor": true,
+      "opened-sensor": false
+    },
+    "wifi": {
+      "hostname": "shutter-controller",
+      "mac-address": "AA:BB:CC:DD:EE:FF"
     }
+  }
 }
 ```
 
-Da notare che il parametro `shutter-status` indica lo stato del vano, i cui possibili valori sono:
+Note that the `shutter-status` parameter indicates the status of the shutter, whose possible values are:
 
-- `-1`: vano parzialmente aperto
-- `0`: vano aperto
-- `1`: vano chiuso
-- `2`: vano in apertura (solo se in automatico)
-- `3`: vano in chiusura (solo se in automatico)
+- `-1`: shutter partially opened
+- `0`: shutter opened
+- `1`: shutter closed
+- `2`: shutter opening (only if automatic)
+- `3`: shutter closing (only if automatic)

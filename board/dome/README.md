@@ -1,269 +1,276 @@
-# Documentation
+# Dome controller code: documentation
 
-⚠️ **WARNING**: need translation.
+- [Dome controller code: documentation](#dome-controller-code-documentation)
+  - [Descrizione cartelle e file](#descrizione-cartelle-e-file)
+  - [Folders and files description](#folders-and-files-description)
+  - [Hardware description](#hardware-description)
+  - [Operation and logic](#operation-and-logic)
+    - [State of the shutter and of the PLC](#state-of-the-shutter-and-of-the-plc)
+    - [PLC encoder and RS485 communication](#plc-encoder-and-rs485-communication)
+    - [Switchboard ignition](#switchboard-ignition)
+      - [Automatic mode](#automatic-mode)
+      - [Manual mode](#manual-mode)
+    - [Dome rotation](#dome-rotation)
+      - [Automatic mode](#automatic-mode-1)
+      - [Manual mode](#manual-mode-1)
+    - [Alert states](#alert-states)
+      - [Power failure](#power-failure)
+    - [Automatic-manual control and user input](#automatic-manual-control-and-user-input)
+  - [Communication with the board](#communication-with-the-board)
+    - [API description](#api-description)
 
-Viene usata la PLC [KMP ProDino ESP32 Ethernet v1](https://kmpelectronics.eu/products/prodino-esp32-ethernet-v1/) come server di controllo del movimento della cupola.
+We use the [KMP PRODINo ESP32 Ethernet v1](https://kmpelectronics.eu/products/prodino-esp32-ethernet-v1/) as the controller for the shutter movement.
 
 ![KMP PRODINo ESP32 Ethernet v1](https://kmpelectronics.eu/wp-content/uploads/2019/11/ProDinoESP32_E_5.jpg)
 
-## Descrizoine hardware
-
-Il ProDino acquistato è dotato di porta eth, inizialmente pensata come mezzo di comunicazione primaria, dopo estese prove e stress test è risultato che il WiFi è più stabile e responsivo. Alla scheda ProDino è stata aggiunta una scheda custom per avere alti 4 ingressi optoisolati, fatta da Marco, che si collega ai pin digitali esposti dalla scheda.
-
-In oltre, la scheda comunica via seriale 485 con una scheda, sempre sviluppata da Marco, per la lettura dell'encoder e il suono del cicalino pre-rotazione (di seguito i comandi).
-
 ## Descrizione cartelle e file
 
-- `data/`. File che andranno nella SPIFFS, tipicamente pagine web.
+## Folders and files description
 
-  - `dashboard.html` e `dashboard.js`. Contengono l'html e il relativo codice javascript per la dashboard di controllo della board (comandi principali e avanzati, panoramica dello stato).
+- [`data/`](data/). Files that will go to the filesystem, i.e. web pages.
 
-  - `webserial.html` e `webserial.js`. Contengono l'html e il relativo codice javascript per l'interfaccia WebSerial (vedi dopo).
+- [`include/`](include/)
 
-  - `style.css`. Contiene le regole di formattazione comuni alle pagine web.
+  - [`global_definitions.hpp`](include/global_definitions.hpp). Contains global variables definitions and global `#define` needed in the code. The variables are declared as `extern` in order to be able to use them in the various files located in the `src` folder; they are initialized in the `src/main.cpp` file. All imports are located here.
 
-- `examples/`. Contiene esempi e prove varie.
+- [`lib/`](lib/)
 
-- `include/`
+  - [`CustomOptoIn`](lib/CustomOptoIn), version 1.0.0. Library for reading custom optical inputs.
 
-  - `global_definitions.h`. Contiene le definizione delle variabili globali e le `#define` che servono nel codice. Le variabili sono dichiarate come `extern` per poterle usare nel vari file che si trovano nella cartella `src`; sono invece inizializzate nel file `src/main.cpp`.
+  - [`ProDinoESP32`](lib/ProDinoESP32), version 2.0.0 commit 8ffb407, [official repository](https://github.com/kmpelectronics/ProDinoESP32). Library to use board features such as relay, optoin, ethernet, ...
 
-- `lib/`
+- [`src/`](src/)
 
-  - `CustomOptoIn`, versione 0.1.0. Libreria per leggere gli ingressi ottici custom.
+  - [`auxiliary_functions.cpp`](src/auxiliary_functions.cpp). Contains all the auxiliary functions, such as Wi-Fi connection, LED flashing, ...
 
-  - `ProDinoESP32`, versione 1.1.0, [repository ufficiale](https://github.com/kmpelectronics/Arduino/tree/master/ProDinoESP32). Libreria per usare le funzionalità della scheda, come relay, optoin, ethernet, ...
+  - [`main.cpp`](src/main.cpp). Contains the core of the code: initialization of the variables, setup, loop and any secondary tasks.
 
-  - `WebSerial`, versione 1.0.0, ispirata a [questa](https://github.com/ayushsharma82/WebSerial) ma pesantemente modificata per migliorarne le funzionalità. Emula una interfaccia seriale mediante una websocket per permettere debugging da remoto.
+  - [`web_server.cpp`](src/web_server.cpp). Contains the web server with all its routes.
 
-- `src/`
+## Hardware description
 
-  - `auxiliary_functions.cpp`. Contiene le funzioni ausiliarie, come la connessione al Wi-Fi, il lampeggio del led, ...
+The purchased PRODINo is equipped with an ethernet port, initially used as the primary communication port. After extensive tests and stress tests, it turned out that the Wi-Fi is more stable and responsive.
 
-  - `main.cpp`. Contiene il core del codice: inizializzazione delle variabili, setup, loop ed eventuali task secondari.
+A custom board has been added to the PRODINo to have 4 more optically isolated inputs, which connects to the digital pins.
 
-  - `web_server.cpp`. Contiene il web server con tutte le sue chiamate.
+Furthermore, the card communicates via serial 485 with a custom PLC for reading the encoder and playing the pre-rotation buzzer.
 
-## Tipo di comando
+## Operation and logic
 
-La board mette a disposizione:
+### State of the shutter and of the PLC
 
-- Una pagina web accessibile all'indirizzo `http://board-ip-address/`.
+The global status can be checked from the web page or with the `status` command.
 
-- Delle API attraverso cui comandare la board all'indirizzo `http://board-ip-address/api`. Per interagire con le API, è necessario fornire un json che specifichi il comando formattato come segue: `{"cmd": "command"}` dove, al posto di `command`, si mette il nome del comando di interesse.
+The board determines the position of the dome through the encoder mounted on the transmission pinion, read by the custom PLC.
 
-- Una seriale web in sola lettura per i log all'indirizzo `http://board-ip-address/webserial`.
+### PLC encoder and RS485 communication
 
-## Funzionamento
+The PLC code is not provided in this repository.
 
-### Stato della dome e della PLC
+Commands:
 
-Lo stato globale può essere controllato dalla pagina web o con il comando `status`.
+- `0x42` (`B`): turn on buzzer, turn off with any other command.
 
-### Rotazione
+- `0x52` (`R`): dome position request, in response two hex bytes with dome position in degrees, e.g. `0x00B4 -> 180dec -> SOUTH`.
 
-La rotazione è gestita:
+- `0x57` (`W`): write dome position, the command is followed by two hex bytes of the position.
 
-- In modalità automatica dai metodi `startSlewing(int az_target)` e `stopSlewing()`,
+- `0x5A` (`Z`): zero request, the command must be followed by the rotation of the dome towards the zero switch, upon reaching which the command and the two hex bytes of the zero position are retransmitted.
 
-- In modalità manuale da loop che controlla la pressione dei pulsanti, richiamando ogni 100ms la posizione della cupola con il metodo `domePosition()` e `stopSlewing()`.
+- `0x44` (`D`): restore the default configuration.
 
-### Comunicazione RS-485
+- `0x23` (`#`): disable zero switch, only for first calibration.
 
-PLC con comunicazione seriale, i parametri di comunicazione sono ProDino Master - Encoder Slave, con un bound rate di 19200.
+- `0xC0`: write configuration data command, total 9 hex bytes:
 
-Nota: 1 giro della cupola sono 84.6 giri del pignone. L'encoder è letto a 200 passi giro, quindi un giro completo della cupola sono 16920 (`0x4218`) passi encoder. 16920 / 360 gradi = 47 passi encoder per grado di rotazione.
+  - byte 1: `0xC0`
+  - byte 2: encoder steps / dome rotation degree
+  - byte 3 and 4: encoder steps / one dome revolution
+  - byte 5 and 6: first zero switch position in degrees
+  - byte 7 and 8: second zero switch position in degrees
+  - byte 9: checksum, calculated as `neg(sum(bytes)) + 1` (note that the sum is done in a byte, so the overflow must be used), in C++:
 
-Comandi 485:
+    ```c++
+    uint8_t checksum{};
+    for (uint8_t i : config) checksum += i;
+    checksum = ~checksum + 1;
+    ```
 
-- `0x42` "B": attiva cicalino, si spegne con qualunque altro comando.
+- `0xC1`: configuration data read request, response 8 byte hex (7 data as above + checksum).
 
-- `0x52` "R": richiesta di posizione della cupola, in risposta due byte hex con posizione in gradi della cupola. `0x00B4` -> 180dec -> SUD
+### Switchboard ignition
 
-- `0x57` "W": forzatura posizione cupola. Il comando è seguito da due byte hex della posizione.
+#### Automatic mode
 
-- `0x5A` "Z": richiesta di manovra di Zero, il comando deve essere seguito dalla rotazione della cupola verso lo switch di zero, raggiunto il quale viene ritrasmesso il comando e i due byte hex della posizione.
+The switchboard can be turned on with the appropriate network request.
 
-- `0x44` "D": ripristina la configurazione di default.
+#### Manual mode
 
-- `0x23` "#": disabilita switch di zero, solo per calibrazione.
+The loop checks if the corresponding button is pressed for 2 seconds and, if so, turns on the ignition.
 
-- `0xC0`  Comando scrittura dati di configurazione totale 9 byte hex:
-  - byte 1: comando `0xC0`;
-  - byte 2: passi encoder per grado di rotazione della cupola;
-  - byte 3 e 4: due byte passi encoder per un giro della cupola;
-  - byte 5 e 6: due byte posizione switch di zero "1" in gradi;
-  - byte 7 e 8: due byte posizione switch di zero "2" in gradi;
-  - byte 9: checksum `(Neg(byte 1+byte2+...+byte8)+1)`.
-  - VALORE CORRETTO ATTUALMENTE DELLA CONFIGURAZIONE: `[47, 65, 251, 0, 248, 0, 37]`
+### Dome rotation
 
-- `0xC1` Richiesta lettura dati di configurazione, risposta 8 byte hex (7 dati + checksum, vedi sopra).
+To calibrate the dome position you can use the `find-zero` request. In any case, the dome calibrates itself when it encounters the zero switch. The calibration procedure should therefore only be used if the dome loses its reference.
 
-La PLC è dotata di tre led:
+The encoder PLC does not keep in memory the position reached when it is switched off, therefore at start up it is necessary to write the last known position with the command `0x57` (`W`). For this reason, at the end of each movement, the PRODINo writes the position reached in EEPROM. In case of current loss during a movement of the dome, it is therefore necessary to implement the calibration procedure (the saved position does not coincide with the real position as it has not yet been written).
 
-- LED 1: senso di rotazione.
-- LED 2: DATA RX.
-- LED 3: Zero switch / all'avvio:
-  - 1 lampeggio -> load default config
-  - 2 lampeggi -> load eeprom config.
+#### Automatic mode
 
-### Controllo automatico-manuale e input utente
+The rotation of the dome is controlled with the `slew-to-az` request. This request only turn on the motor control relays. The motion state check is done in the loop. When the correct position is reached (checked through the encoder), the board switches off the relays.
 
-Il controllo AUT/MAN viene eseguito direttamente dal loop, quando impostato, prende la totale precedenza su qualsiasi richiesta fatta dalla parte di gestione automatica, in quel caso, il web server risponderà con `{"rsp":"Error: dome in manual mode"}`.
-Gli input che l'utente puù dare in modalità manuale sono:
+To early stop the motion, use the `abort` command.
 
-- `AUT/MAN`, selettore della modalità manuale-automatica
-- `Accensione quadro elettrico`, pulsante di accensione del quadro comandi che da corrente al motore, alla blindo sbarra e al ProDino del vano
-- `Movimentazione oraria`, pulsante di movimentazione oraria
-- `Movimentazione anti oraria`, pulsante di movimentazione anti oraria
+Giving a move command while the dome is already rotating updates the target or, if it is on the opposite side, stops the rotation and restarts it.
 
-Tutti i pulsanti sono collegati agli ingressi opto isolati e gestiti dalla funzione `buttonPressed(button, seconds)` che si occupa di controllare se il pulsante è stato premuto, attivare la sirena e ritornare `true` quando il pulsante è stato premuto continuativamente per l'ammontare di secondi specificato come parametro.
-### Armo quadri
+#### Manual mode
 
-L'armo quadro elettrico viene gestito dal loop, se la board è in modalità manuale, che controlla se il pulsante "Armo quadro" viene premuto per 2 secondi e, in quel caso, richiama il metodo `switchboardIgnition()` per dare corrente al quadro; in caso di utilizzo automatico il quadro può essere acceso con la richiesta `{"cmd" : "ignite-elettrical-panel"}`, che richiama la medesima funzione.
+Rotation is controlled by buttons.
 
-### Stati di allerta
-#### Mancanza di corrente
-Sebbene l'intera apparecchiatura di cupola (compresa la blindo sbarra, i motori di rotazione e quelli di apertura/chiusura del vano) sono posti sotto UPS, per evitare di lasciare la cupola aperta e in uno stato incosistente, uno degli ingressi opto isolati della board è stato assegnato al controllo del flusso di corrente a monte del UPS, se questo viene meno, nel `loop` viene triggerata una funzione per comunicare comunicare al vano la chiusura, avvenuta quella richiesta si fa partire la funzione `shutDowun()` per il salvataggio delle variabili.
-#### Risveglio della board con errore
-DA FARE
+### Alert states
 
-## Elenco richieste di rete supportate
+#### Power failure
 
-Di seguito sono riportate le richieste di rete implementate sulla PLC; tutte le richieste sono di tipo GET.
+Although the entire dome board is placed under an UPS, to avoid leaving the dome open and in an inconsistent state, one of the board's inputs has been assigned to control the current flow upstream of the UPS. If this fails, a function is triggered in the `loop` to tell the entire system to close the shutter and shut down.
 
-### Pagine web
+### Automatic-manual control and user input
 
-- `http://board-ip-address/`: homepage con il riassunto dello stato del vano.
+The dome can be controlled remotely only if the automatic-manual switch is positioned on "automatic": in this case, the manual controls are blocked, allowing only remote control. If the switch is in the "manual" position, remote control with the board is blocked, allowing only manual control with the buttons. The board monitors the state of the switch using an optical input.
 
-- `http://board-ip-address/webserial`: interfaccia seriale via web (sola lettura).
+In case of automatic-manual switching, the automatic management and control services - such as the automatic shutdown or follow procedure - are enabled or disabled (and reset).
 
-### API
+## Communication with the board
 
-Per interagire con le API, è necessario fornire un json che specifichi il comando formattato come segue:
+You can interact with the board using:
+
+- **Web page** at the `/` route; authentication required.
+- **API** at the `/api` route.
+
+The board log is at the `/log` route.
+
+### API description
+
+The APIs are accessible through http GET requests of the type:
+
+```
+/api?json={"cmd":"command"}
+```
+
+where the possible values of `command` are:
+
+- Dome-related functions:
+
+  - `abort`: stop the movement.
+  - `slew-to-az`: move the dome to the specified azimuth, requires the `az-target` key containing an integer between 0 and 360.
+  - `park`: park the dome.
+  - `find-zero`: calibrate the dome looking for the zero switch.
+
+- Encoder-related functions:
+
+  - `encoder-readconf`: read the PLC configuration.
+  - `encoder-writeconf`: write a new PLC configuration, requires the `config` key containing a seven byte array (see encoder parameters description).
+  - `encoder-resetconf`: reset the PLC configuration.
+  - `encoder-disablezero`: read the PLC configuration.
+
+- Board management:
+
+  - `ignite-switchboard`: switch on the dome switchboard.
+  - `reset-EEPROM`: reset the EEPROM and restart the board to make the reset effective.
+  - `restart`: restart the board (graceful restart).
+  - `force-restart`: restart the board (hard restart).
+  - `turn-off`: save essential parameters and prepare the board for shutdown.
+  - `server-logging-toggle`: toggle webserver logging state.
+  - `server-logging-status`: return the webserver log status.
+
+- Status:
+
+  - `status`: board status json.
+
+The response (except for the cases indicated) will be in JSON of the type:
 
 ```json
 {
-  "cmd": "command"
+  "rsp": "message"
 }
 ```
 
-dove, al posto di `command`, si mette il nome del comando di interesse. La risposta sarà del tipo:
+where the possible values of `message` are:
 
-```json
-{
-  "rsp": "response"
-}
-```
+- `done` in case of successful request.
+- a message reporting the type of error found.
 
-Se il comando è andato a buon fine, la risposta è `done`. Un esempio completo di una richiesta andata a buon fine è il seguente:
+The responses of other commands are instead more extensive and an example is shown here:
 
-```text
-HTTP GET REQUEST
-  - Full URL: http://board-ip-address/api?json={"cmd":"park"}
+- `encoder-readconf`:
 
-RESPONSE
-  - Code: 200
-  - Type: application/json
-  - Body: {"rsp":"done"}
-```
-
-#### Comandi
-
-- `abort`: interrompe il movimento (risposta: 200, tipo: `application/json`).
-
-- `cit`: una citazione simpatica (risposta: 200, tipo: `text/plain`).
-
-- `cit2`: un'altra citazione simpatica (risposta: 200, tipo: `text/plain`).
-
-- `find-zeros`: trova gli zeri dell'encoder (risposta: 200, tipo: `application/json`).
-
-- `force-restart`: riavvia la PLC anche se in manuale (hard restart) (risposta: 200, tipo: `application/json`).
-
-- `ignite-elettrical-panel`: accende il quadro elettrico per rotazione e vano (risposta: 200, tipo: `application/json`).
-
-- `park`: parcheggia la cupola (risposta: 200, tipo: `application/json`).
-
-- `reset-EEPROM`: resetta la EEPROM e riavvia la PLC per rendere effettivo il reset (risposta: 200, tipo: `application/json`).
-
-- `restart`: riavvia la PLC se in automatico (graceful restart) (risposta: 200, tipo: `application/json`).
-
-- `set-log-off`: disabilita il log su seriale (risposta: 200, tipo: `application/json`).
-
-- `set-log-on`: abilita il log su seriale (risposta: 200, tipo: `application/json`).
-
-- `slew-to-az`: muovi la cupola all'azimuth specificato, richiede anche la chiave `az-target` (risposta: 200, tipo: `application/json`).
-
-- `turn-off`: spegni i quadri (risposta: 200, tipo: `application/json`).
-
-- `status`: restituisce lo stato del vano (risposta: 200, tipo: `application/json`).
-
-#### Note sul comando status
-
-La riposta del comando `status` è molto estesa e si riporta qui un esempio:
-
-```json
-{
-  "rsp": {
-    "board-name": "CM-dome-shutter",
-    "uptime": "0 days, 0 hours, 2 minutes, 33 seconds",
-    "shutter-status": 1,
-    "movement-status": false,
-    "alert-status": false,
-    "log": {
-      "serial-speed": 115200,
-      "web-serial": "/webserial"
+  ```json
+  {
+    "bytes": [
+      47,
+      65,
+      251,
+      0,
+      248,
+      0,
+      37,
+      120
+    ],
+    "decoded data": {
+      "steps / degree": 47,
+      "steps / dome revolution": 16891,
+      "zero azimuth": 248,
+      "zero offset steps": 37,
+      "checksum": 120
     },
-    "relay": {
-      "opening-motor": false,
-      "closing-motor": false
-    },
-    "optoin": {
-      "auto": true,
-      "closed-sensor": true,
-      "opened-sensor": false
-    },
-    "internet": {
-      "wifi": {
-        "status": true,
-        "power-saving": 0,
-        "hostname": "CM-dome-shutter",
-        "mac-address": "24:6F:28:43:70:4C",
-        "ssid": "cdf",
-        "connection-status": true,
-        "ip-address": "192.168.41.85"
+    "validation": true
+  }
+  ```
+
+- `status`:
+
+  ```json
+  {
+    "rsp": {
+      "firmware-version": "v1.0.3",
+      "uptime": "0 days, 0 hours, 23 minutes, 32 seconds",
+      "dome-azimuth": 91,
+      "target-azimuth": 91,
+      "movement-status": false,
+      "in-park": true,
+      "finding-park": false,
+      "finding-zero": false,
+      "relay": {
+        "list": [
+          false,
+          false,
+          false,
+          false
+        ],
+        "cw-motor": false,
+        "ccw-motor": false,
+        "switchboard": false
       },
-      "ethernet": {
-        "status": false
+      "optoin": {
+        "list": [
+          false,
+          true,
+          true,
+          false,
+          false,
+          false,
+          true,
+          false
+        ],
+        "auto": true,
+        "switchboard-status": true,
+        "ac-presence": true,
+        "manual-cw-button": false,
+        "manual-ccw-button": false,
+        "manual-ignition": false
+      },
+      "wifi": {
+        "hostname": "dome-controller",
+        "mac-address": "AA:BB:CC:DD:EE:FF"
       }
     }
   }
-}
-```
-
-Varie note sulla risposta:
-
-- Il parametro `wifi -> power-saving` _deve_ essere 0: questo indica che la modalità di risparmio energetico è disattivata e che quindi la board ha le migliori prestazioni di rete possibili.
-
-## Note sul codice
-
-Nella funzione `startSlewing(int az_target)` è stato inserito il calcolo della direzione compatto, frutto del codice:
-
-```
-if(az_target < current_position){
-  if(delta_az > 180)
-    direction = CW_DIRECTION;
-  else
-    direction = CCW_DIRECTION;
-} else {
-  if(delta_az > 180)
-    direction = CCW_DIRECTION;
-  else
-    direction = CW_DIRECTION;
-}
-```
-
-Da questo si può notare che la direction è uguale a CW_DIRECTION (quando az_target < current_position) e (delta_az > 180) sono uguali, mentre è CCW_DIRECTION quando sono diversi; quindi il codice può essere semplificato in:
-```
-direction = (az_target < current_position) == (delta_position >180) ? CW_DIRECTION : CCW_DIRECTION;
-```
+  ```
