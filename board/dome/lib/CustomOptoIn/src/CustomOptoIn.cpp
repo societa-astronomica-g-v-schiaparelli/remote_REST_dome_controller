@@ -1,11 +1,13 @@
 /*
+CUSTOM OPTOIN CONTROLLER LIBRARY
+
 Remote REST dome controller
 https://github.com/societa-astronomica-g-v-schiaparelli/remote_REST_dome_controller
 
 Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 SPDX-License-Identifier: MIT
 Copyright (c) 2020-2022, Società Astronomica G. V. Schiaparelli <https://www.astrogeo.va.it/>.
-Authors: Paolo Galli <paolo97gll@gmail.com>
+Authors: Paolo Galli <paolo.galli@astrogeo.va.it>
          Luca Ghirotto <luca.ghirotto@astrogeo.va.it>
 
 Permission is hereby  granted, free of charge, to any  person obtaining a copy
@@ -27,18 +29,30 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#include "CustomOptoIn.h"
+#include "CustomOptoIn.hpp"
 
-void CustomOptoInClass::setup() {
-    #define INPUT_TYPE INPUT
-    pinMode(OptoInC5, INPUT_TYPE);
-    pinMode(OptoInC6, INPUT_TYPE);
-    pinMode(OptoInC7, INPUT_TYPE);
-    pinMode(OptoInC8, INPUT_TYPE);
+const OptoInC optoIn_number_list[]{OptoInC::OptoInC1,
+                                   OptoInC::OptoInC2,
+                                   OptoInC::OptoInC3,
+                                   OptoInC::OptoInC4,
+                                   OptoInC::OptoInC5,
+                                   OptoInC::OptoInC6,
+                                   OptoInC::OptoInC7,
+                                   OptoInC::OptoInC8};
+
+void CustomOptoInClass::setup(const int input_type) {
+    pinMode(OptoInC::OptoInC5, input_type);
+    pinMode(OptoInC::OptoInC6, input_type);
+    pinMode(OptoInC::OptoInC7, input_type);
+    pinMode(OptoInC::OptoInC8, input_type);
+}
+
+bool CustomOptoInClass::getState(const int optoIn_number) {
+    return getState(optoIn_number_list[optoIn_number]);
 }
 
 bool CustomOptoInClass::getState(const OptoInC optoIn) {
     return (optoIn <= 4) ? KMPProDinoESP32.getOptoInState(optoIn) : !digitalRead(optoIn);
 }
 
-CustomOptoInClass customOptoIn {};
+CustomOptoInClass customOptoIn{};

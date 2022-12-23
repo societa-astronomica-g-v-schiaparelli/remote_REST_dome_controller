@@ -1,12 +1,12 @@
 #######################################
-# Syntax Coloring Map For ProDinoMKRZero
+# Syntax Coloring Map For ProDino
 #######################################
 
 #######################################
 # Datatypes (KEYWORD1)
 #######################################
 
-KMPProDinoMKRZero	KEYWORD1
+KMPProDinoESP32	KEYWORD1
 KMPCommon	KEYWORD1
 
 #######################################

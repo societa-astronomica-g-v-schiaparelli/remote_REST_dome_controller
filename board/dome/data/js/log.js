@@ -5,7 +5,7 @@ https://github.com/societa-astronomica-g-v-schiaparelli/remote_REST_dome_control
 Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 SPDX-License-Identifier: MIT
 Copyright (c) 2020-2022, Società Astronomica G. V. Schiaparelli <https://www.astrogeo.va.it/>.
-Authors: Paolo Galli <paolo97gll@gmail.com>
+Authors: Paolo Galli <paolo.galli@astrogeo.va.it>
          Luca Ghirotto <luca.ghirotto@astrogeo.va.it>
 
 Permission is hereby  granted, free of charge, to any  person obtaining a copy
@@ -28,45 +28,63 @@ SOFTWARE.
 */
 
 const DEBUG = false;
-const DEBUG_IP = ""
+var DEBUG_IP = "IP_address_here"; // TODO put your IP address here
 
-const UPDATE_TIME = 1000;
-var ws;
 var follow = true;
+var webserver_log;
+var connection_error_alert = true;
 
 function start() {
-    createWebSocket();
     setTimeout(getLogStatus, 0);
-    setInterval(handleWebSocket, UPDATE_TIME);
-}
-
-function createWebSocket() {
-    ws = new WebSocket(`ws://${DEBUG ? DEBUG_IP : window.location.hostname}/webserialws`);
-    ws.onmessage = event => {
+    Toast2.fire({
+        icon: "info",
+        title: "Connection initialization...",
+    });
+    const source = new ReconnectingEventSource(`${DEBUG ? `http://${DEBUG_IP}` : ""}/log_sse`);
+    source.onopen = function (e) {
+        console.log("Connection ok, start receiving updates.");
+        if (connection_error_alert) {
+            connection_error_alert = false;
+            Toast.fire({
+                icon: "success",
+                title: "Connection established"
+            });
+        }
+    };
+    source.onmessage = function (e) {
+        console.log("New update received!");
         const text = document.getElementById("text");
-        text.value += `${text.value ? "\n\n" : ""}${event.data}`;
+        text.value += `${text.value ? "\n\n" : ""}${e.data}`;
         if (follow) text.scrollTop = text.scrollHeight;
+    };
+    source.onerror = function (e) {
+        if (!connection_error_alert) {
+            connection_error_alert = true;
+            Toast2.fire({
+                icon: "error",
+                title: "Connection lost",
+                text: "Connection dropped, reinitialization in progress..."
+            });
+        }
+        if (e.target.readyState != EventSource.OPEN) console.log("Disconnected, retry...");
+        else console.log("Error during response handling.");
     };
 }
 
-function handleWebSocket() {
-    const msg = document.getElementById("msg");
-    if (ws.readyState == WebSocket.OPEN) {
-        ws.send("");
-        msg.style.display = "none";
-    }
-    if (ws.readyState == WebSocket.CLOSED) {
-        msg.style.display = "";
-        createWebSocket();
-    }
-}
-
 function clearText() {
+    Toast.fire({
+        icon: "success",
+        title: "Log page cleaned up"
+    });
     document.getElementById("text").value = "";
 }
 
 function toggleFollow() {
-    document.getElementById("follow-button").value = follow ? "Enable follow" : "Disable follow";
+    Toast.fire({
+        icon: "success",
+        title: `Follow ${follow ? "disabled" : "enabled"}`
+    });
+    document.getElementById("follow-button").value = follow ? "Follow enabled" : "Follow disabled";
     follow = !follow;
 }
 
@@ -74,23 +92,34 @@ function getLogStatus() {
     const request = new Request(`${DEBUG ? `http://${DEBUG_IP}` : ""}/api?json=${encodeURIComponent(JSON.stringify({ "cmd": "server-logging-status" }))}`);
     const button = document.getElementById("disable-log-button");
     fetchTimeout(request)
-        .then(rsp => { button.value = `${rsp ? "Disable" : "Enable"} webserver log`; })
-        .catch(error => { button.value = "Toggle webserver log"; });
+        .then(rsp => {
+            webserver_log = rsp;
+            button.value = `${rsp ? "Disable" : "Enable"} 'status' command log`;
+        })
+        .catch(error => {
+            webserver_log = undefined;
+            button.value = "Toggle 'status' command log";
+        });
 }
 
 function toggleLog() {
     const request = new Request(`${DEBUG ? `http://${DEBUG_IP}` : ""}/api?json=${encodeURIComponent(JSON.stringify({ "cmd": "server-logging-toggle" }))}`);
-    const button = document.getElementById("disable-log-button");
     fetchTimeout(request)
         .then(rsp => {
             if (rsp != "done") throw new Error(rsp);
-            button.className = "green";
+            Toast.fire({
+                icon: "success",
+                title: webserver_log == undefined ? "Command sent" : webserver_log == true ? "'status' log disabled" : "'status' log enabled"
+            });
             setTimeout(getLogStatus, 0);
-            setTimeout(() => { button.className = "gray"; }, 2000);
         })
         .catch(error => {
-            button.className = "red";
-            setTimeout(() => { button.className = "gray"; }, 2000);
+            console.trace(`An error has occured: ${error.message}`);
+            Swal.fire({
+                icon: "error",
+                title: "Error",
+                text: "Failed to send the command."
+            });
         });
 }
 
@@ -104,3 +133,17 @@ async function fetchTimeout(url, ms = 3500, { signal, ...options } = {}) {
     const json = await response.json();
     return json["rsp"];
 }
+
+const Toast = Swal.mixin({
+    toast: true,
+    position: 'top-end',
+    showConfirmButton: false,
+    timer: 1500,
+    timerProgressBar: true,
+});
+
+const Toast2 = Swal.mixin({
+    toast: true,
+    position: 'top-end',
+    showConfirmButton: false
+});

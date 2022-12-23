@@ -5,7 +5,7 @@ https://github.com/societa-astronomica-g-v-schiaparelli/remote_REST_dome_control
 Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 SPDX-License-Identifier: MIT
 Copyright (c) 2020-2022, Società Astronomica G. V. Schiaparelli <https://www.astrogeo.va.it/>.
-Authors: Paolo Galli <paolo97gll@gmail.com>
+Authors: Paolo Galli <paolo.galli@astrogeo.va.it>
          Luca Ghirotto <luca.ghirotto@astrogeo.va.it>
 
 Permission is hereby  granted, free of charge, to any  person obtaining a copy
@@ -27,96 +27,118 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-
-#include "global_definitions.h"
-
+#include "global_definitions.hpp"
 
 //////////
 
+/**
+ * @brief Return true if unknown client IP, else false; used for web auth.
+ */
+bool unknown_IP(const String &clientIP) {
+    return clientIP != "authorized_ip_1" &&  // TODO put your authorized IP address here
+           clientIP != "authorized_ip_2";    // TODO put your authorized IP address here
+}
 
-#define JSON_S_SIZE 512
+//////////
+
+#define JSON_S_SIZE 1024
 // status json, allocated in global stack
-StaticJsonDocument<JSON_S_SIZE> json_status {};
+StaticJsonDocument<JSON_S_SIZE> json_status{};
 // status string for json_status serialization
-String response_status {};
+String response_status{};
 // semaphore for status json, to avoid too much allocations
-SemaphoreHandle_t xSemaphore_status {xSemaphoreCreateMutex()};
+SemaphoreHandle_t xSemaphore_status{xSemaphoreCreateMutex()};
 
 // variable for disabling webserver logging
-bool webserver_logging {false};
-
+bool webserver_logging{false};
 
 //////////
 
-
 void startWebServer() {
-
     /////////////
     // WEBPAGES
 
-    WebServer.on("/", HTTP_GET, [] (AsyncWebServerRequest *request) {
-        String clientIP {request->client()->remoteIP().toString()};
-        if (!request->authenticate(WEBPAGE_LOGIN_USER, WEBPAGE_LOGIN_PASSWORD))
+    WebServer.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+        if (unknown_IP(request->client()->remoteIP().toString()) && !request->authenticate(WEBPAGE_LOGIN_USER, WEBPAGE_LOGIN_PASSWORD))
             return request->requestAuthentication();
         request->send(SPIFFS, "/dashboard.html", "text/html");
-        logToSerial("ESPAsyncWebServer", request->url(), "");
+        logMessage("ESPAsyncWebServer", request->url(), "");
     });
 
-    WebServer.on("/dashboard.js", HTTP_GET, [] (AsyncWebServerRequest *request) {
-        request->send(SPIFFS, "/dashboard.js", "text/javascript");
-        logToSerial("ESPAsyncWebServer", request->url(), "");
-    });
-
-    WebServer.on("/webserial", HTTP_GET, [] (AsyncWebServerRequest *request) {
-        if (!request->authenticate(WEBPAGE_LOGIN_USER, WEBPAGE_LOGIN_PASSWORD))
+    WebServer.on("/log", HTTP_GET, [](AsyncWebServerRequest *request) {
+        if (unknown_IP(request->client()->remoteIP().toString()) && !request->authenticate(WEBPAGE_LOGIN_USER, WEBPAGE_LOGIN_PASSWORD))
             return request->requestAuthentication();
-        request->send(SPIFFS, "/webserial.html", "text/html");
-        logToSerial("ESPAsyncWebServer", request->url(), "");
+        request->send(SPIFFS, "/log.html", "text/html");
+        logMessage("ESPAsyncWebServer", request->url(), "");
     });
 
-    WebServer.on("/webserial.js", HTTP_GET, [] (AsyncWebServerRequest *request) {
-        request->send(SPIFFS, "/webserial.js", "text/javascript");
-        logToSerial("ESPAsyncWebServer", request->url(), "");
+    // css
+
+    WebServer.on("/css/style.css", HTTP_GET, [](AsyncWebServerRequest *request) {
+        request->send(SPIFFS, "/css/style.css", "text/css");
+        logMessage("ESPAsyncWebServer", request->url(), "");
     });
 
-    WebServer.on("/style.css", HTTP_GET, [] (AsyncWebServerRequest *request) {
-        request->send(SPIFFS, "/style.css", "text/css");
-        logToSerial("ESPAsyncWebServer", request->url(), "");
+    WebServer.on("/css/sa2.min.css", HTTP_GET, [](AsyncWebServerRequest *request) {
+        request->send(SPIFFS, "/css/sa2.min.css", "text/css");
+        logMessage("ESPAsyncWebServer", request->url(), "");
+    });
+
+    // js
+
+    WebServer.on("/js/dashboard.js", HTTP_GET, [](AsyncWebServerRequest *request) {
+        request->send(SPIFFS, "/js/dashboard.js", "text/javascript");
+        logMessage("ESPAsyncWebServer", request->url(), "");
+    });
+
+    WebServer.on("/js/log.js", HTTP_GET, [](AsyncWebServerRequest *request) {
+        request->send(SPIFFS, "/js/log.js", "text/javascript");
+        logMessage("ESPAsyncWebServer", request->url(), "");
+    });
+
+    WebServer.on("/js-external/res.min.js", HTTP_GET, [](AsyncWebServerRequest *request) {
+        request->send(SPIFFS, "/js-external/res.min.js", "text/javascript");
+        logMessage("ESPAsyncWebServer", request->url(), "");
+    });
+
+    WebServer.on("/js-external/sa2.min.js", HTTP_GET, [](AsyncWebServerRequest *request) {
+        request->send(SPIFFS, "/js-external/sa2.min.js", "text/javascript");
+        logMessage("ESPAsyncWebServer", request->url(), "");
     });
 
     ///////////
     // API
 
-    WebServer.on("/api", HTTP_GET, [] (AsyncWebServerRequest *request) {
+    WebServer.on("/api", HTTP_GET, [](AsyncWebServerRequest *request) {
         if (request->hasParam("json")) {
-            StaticJsonDocument<192> json {};
+            StaticJsonDocument<192> json{};
             String response{};
 
-            // try serialization
-            const DeserializationError d_error {deserializeJson(json, request->getParam("json")->value())};
+            // try deserialization
+            const DeserializationError d_error{deserializeJson(json, request->getParam("json")->value())};
             if (d_error) {
                 json["rsp"] = "Error: wrong syntax";
                 serializeJson(json, response);
                 request->send(400, "application/json", response);
-                logToSerial("ESPAsyncWebServer", request->url(), response);
+                logMessage("ESPAsyncWebServer", request->url(), response);
                 return;
             }
 
             // check json syntax
-            const bool c1 {json.containsKey("cmd") && json["cmd"].is<String>()};
-            const bool c2 {json["cmd"] != "slew-to-az" || (json["cmd"] == "slew-to-az" && json.containsKey("az-target"))};
-            const bool c3 {json["cmd"] != "encoder-writeconf" || (json["cmd"] == "encoder-writeconf" && json.containsKey("config") && json["config"].is<JsonArrayConst>())};
+            const bool c1{json.containsKey("cmd") && json["cmd"].is<String>()};
+            const bool c2{json["cmd"] != "slew-to-az" || (json["cmd"] == "slew-to-az" && json.containsKey("az-target"))};
+            const bool c3{json["cmd"] != "encoder-writeconf" || (json["cmd"] == "encoder-writeconf" && json.containsKey("config") && json["config"].is<JsonArrayConst>())};
             if (!(c1 && c2 && c3)) {
                 json.clear();
                 json["rsp"] = "Error: wrong syntax";
                 serializeJson(json, response);
                 request->send(400, "application/json", response);
-                logToSerial("ESPAsyncWebServer", request->url(), response);
+                logMessage("ESPAsyncWebServer", request->url(), response);
                 return;
             }
 
-            // save command, create response json and handle request
-            const String command {json["cmd"].as<String>()};
+            // save command, and handle request
+            const String command{json["cmd"].as<String>()};
 
             /* dome-related functions */
 
@@ -129,14 +151,14 @@ void startWebServer() {
                 } else if (xSemaphoreTake(xSemaphore, pdMS_TO_TICKS(300)) != pdTRUE) {
                     json["rsp"] = "Error: mutex acquired";
                 } else if (!MOVEMENT_STATUS) {
-                    json["rsp"] = "done";
                     status_finding_zero = status_finding_park = false;
                     xSemaphoreGive(xSemaphore);
+                    json["rsp"] = "done";
                 } else {
                     json["rsp"] = "done";
                     serializeJson(json, response);
                     request->send(200, "application/json", response);
-                    logToSerial("ESPAsyncWebServer", request->url(), command + ": " + response);
+                    logMessage("ESPAsyncWebServer", request->url(), command + ": " + response);
                     status_finding_zero = status_finding_park = false;
                     stopSlewing();
                     xSemaphoreGive(xSemaphore);
@@ -144,11 +166,11 @@ void startWebServer() {
                 }
                 serializeJson(json, response);
                 request->send(200, "application/json", response);
-                logToSerial("ESPAsyncWebServer", request->url(), command + ": " + response);
+                logMessage("ESPAsyncWebServer", request->url(), command + ": " + response);
             }
 
             else if (command == "slew-to-az") {
-                const int new_target_az {json["az-target"].as<int>()};
+                const int new_target_az{json["az-target"].as<int>()};
                 json.clear();
                 if (!AUTO) {
                     json["rsp"] = "Error: dome in manual mode";
@@ -168,22 +190,21 @@ void startWebServer() {
                     json["rsp"] = "done";
                     serializeJson(json, response);
                     request->send(200, "application/json", response);
-                    logToSerial("ESPAsyncWebServer", request->url(), command + ": " + response);
+                    logMessage("ESPAsyncWebServer", request->url(), command + ": " + response);
                     startSlewing(new_target_az);
                     xSemaphoreGive(xSemaphore);
                     return;
                 }
                 serializeJson(json, response);
                 request->send(200, "application/json", response);
-                logToSerial("ESPAsyncWebServer", request->url(), command + ": " + response);
+                logMessage("ESPAsyncWebServer", request->url(), command + ": " + response);
             }
 
             else if (command == "park") {
+                // allow
                 json.clear();
                 if (!AUTO) {
                     json["rsp"] = "Error: dome in manual mode";
-                } else if (!AC_PRESENCE) {
-                    json["rsp"] = "Error: no AC";
                 } else if (!SWITCHBOARD_STATUS) {
                     json["rsp"] = "Error: switchboard off";
                 } else if (status_finding_zero) {
@@ -192,7 +213,7 @@ void startWebServer() {
                     json["rsp"] = "done";
                 } else if (xSemaphoreTake(xSemaphore, pdMS_TO_TICKS(300)) != pdTRUE) {
                     json["rsp"] = "Error: mutex acquired";
-                } else if (!MOVEMENT_STATUS && current_az > PARK_POSITION-2 && current_az < PARK_POSITION+2) {
+                } else if (!MOVEMENT_STATUS && current_az > PARK_POSITION - 2 && current_az < PARK_POSITION + 2) {
                     json["rsp"] = "done";
                     status_park = true;
                     EEPROM.writeBool(EEPROM_PARK_STATE_ADDRESS, status_park);
@@ -202,14 +223,14 @@ void startWebServer() {
                     json["rsp"] = "done";
                     serializeJson(json, response);
                     request->send(200, "application/json", response);
-                    logToSerial("ESPAsyncWebServer", request->url(), command + ": " + response);
+                    logMessage("ESPAsyncWebServer", request->url(), command + ": " + response);
                     park();
                     xSemaphoreGive(xSemaphore);
                     return;
                 }
                 serializeJson(json, response);
                 request->send(200, "application/json", response);
-                logToSerial("ESPAsyncWebServer", request->url(), command + ": " + response);
+                logMessage("ESPAsyncWebServer", request->url(), command + ": " + response);
             }
 
             else if (command == "find-zero") {
@@ -228,14 +249,14 @@ void startWebServer() {
                     json["rsp"] = "done";
                     serializeJson(json, response);
                     request->send(200, "application/json", response);
-                    logToSerial("ESPAsyncWebServer", request->url(), command + ": " + response);
+                    logMessage("ESPAsyncWebServer", request->url(), command + ": " + response);
                     status_finding_zero = true;
                     xSemaphoreGive(xSemaphore);
                     return;
                 }
                 serializeJson(json, response);
                 request->send(200, "application/json", response);
-                logToSerial("ESPAsyncWebServer", request->url(), command + ": " + response);
+                logMessage("ESPAsyncWebServer", request->url(), command + ": " + response);
             }
 
             /* encoder-related functions */
@@ -247,32 +268,34 @@ void startWebServer() {
                     serializeJson(json, response);
                 } else {
                     KMPProDinoESP32.rs485Write(static_cast<byte>(0xC1));
-                    std::vector<byte> config {readFromSerial485()};
+                    std::vector<byte> config{readFromSerial485()};
                     xSemaphoreGive(xSemaphore_rs485);
-                    StaticJsonDocument<384> json_conf {};
-                    for (int i{}; i<config.size(); ++i) json_conf["bytes"][i] = config[i];
+                    StaticJsonDocument<384> json_conf{};
+                    for (int i{}; i < config.size(); ++i) json_conf["bytes"][i] = config[i];
                     json_conf["decoded data"]["steps / degree"] = static_cast<int>(config[0]);
                     json_conf["decoded data"]["steps / dome revolution"] = static_cast<int>(config[2] | config[1] << 8);
                     json_conf["decoded data"]["zero azimuth"] = static_cast<int>(config[4] | config[3] << 8);
                     json_conf["decoded data"]["zero offset steps"] = static_cast<int>(config[6] | config[5] << 8);
                     json_conf["decoded data"]["checksum"] = static_cast<int>(config[7]);
                     config.pop_back();
-                    byte checksum {};
-                    for (auto i: config) checksum += i;
+                    byte checksum{};
+                    for (auto i : config) checksum += i;
                     checksum = ~checksum + 1;
                     json_conf["validation"] = config[7] == checksum;
                     serializeJson(json_conf, response);
                 }
                 request->send(200, "application/json", response);
-                logToSerial("ESPAsyncWebServer", request->url(), command + ": " + response);
+                logMessage("ESPAsyncWebServer", request->url(), command + ": " + response);
             }
 
             else if (command == "encoder-writeconf") {
-                const DynamicJsonDocument json_writeconf {json};
-                const JsonArrayConst encoder_config {json_writeconf["config"].as<JsonArrayConst>()};
+                // check
+                const DynamicJsonDocument json_writeconf{json};
+                const JsonArrayConst encoder_config{json_writeconf["config"].as<JsonArrayConst>()};
                 json.clear();
-                bool config_type_error {false};
-                for (auto i: encoder_config) if (!i.is<byte>()) config_type_error = true;
+                bool config_type_error{false};
+                for (auto i : encoder_config)
+                    if (!i.is<byte>()) config_type_error = true;
                 if (AUTO) {
                     json["rsp"] = "Error: dome in automatic mode";
                 } else if (!AC_PRESENCE) {
@@ -284,7 +307,7 @@ void startWebServer() {
                 } else if (encoder_config.size() != 7) {
                     json["rsp"] = "Error: config must be of 7 bytes";
                 } else {
-                    byte config[] {
+                    byte config[]{
                         static_cast<byte>(0xC0),
                         encoder_config[0].as<byte>(),
                         encoder_config[1].as<byte>(),
@@ -293,10 +316,9 @@ void startWebServer() {
                         encoder_config[4].as<byte>(),
                         encoder_config[5].as<byte>(),
                         encoder_config[6].as<byte>(),
-                        static_cast<byte>(0)
-                    };
-                    byte checksum {};
-                    for (auto i: config) checksum += i;
+                        static_cast<byte>(0)};
+                    byte checksum{};
+                    for (auto i : config) checksum += i;
                     checksum = ~checksum + 1;
                     config[8] = checksum;
                     if (xSemaphoreTake(xSemaphore_rs485, SEMAPHORE_RS485_TIMEOUT) != pdTRUE) {
@@ -309,7 +331,7 @@ void startWebServer() {
                 }
                 serializeJson(json, response);
                 request->send(200, "application/json", response);
-                logToSerial("ESPAsyncWebServer", request->url(), command + ": " + response);
+                logMessage("ESPAsyncWebServer", request->url(), command + ": " + response);
             }
 
             else if (command == "encoder-resetconf") {
@@ -323,13 +345,13 @@ void startWebServer() {
                 } else if (xSemaphoreTake(xSemaphore_rs485, SEMAPHORE_RS485_TIMEOUT) != pdTRUE) {
                     json["rsp"] = "Error: mutex acquired";
                 } else {
-                    KMPProDinoESP32.rs485Write('D');
+                    KMPProDinoESP32.rs485Write(static_cast<byte>(0x44));
                     xSemaphoreGive(xSemaphore_rs485);
                     json["rsp"] = "done";
                 }
                 serializeJson(json, response);
                 request->send(200, "application/json", response);
-                logToSerial("ESPAsyncWebServer", request->url(), command + ": " + response);
+                logMessage("ESPAsyncWebServer", request->url(), command + ": " + response);
             }
 
             else if (command == "encoder-disablezero") {
@@ -343,13 +365,13 @@ void startWebServer() {
                 } else if (xSemaphoreTake(xSemaphore_rs485, SEMAPHORE_RS485_TIMEOUT) != pdTRUE) {
                     json["rsp"] = "Error: mutex acquired";
                 } else {
-                    KMPProDinoESP32.rs485Write('#');
+                    KMPProDinoESP32.rs485Write(static_cast<byte>(0x23));
                     xSemaphoreGive(xSemaphore_rs485);
                     json["rsp"] = "done";
                 }
                 serializeJson(json, response);
                 request->send(200, "application/json", response);
-                logToSerial("ESPAsyncWebServer", request->url(), command + ": " + response);
+                logMessage("ESPAsyncWebServer", request->url(), command + ": " + response);
             }
 
             /* system management */
@@ -362,7 +384,7 @@ void startWebServer() {
                     json["rsp"] = "done";
                     serializeJson(json, response);
                     request->send(200, "application/json", response);
-                    logToSerial("ESPAsyncWebServer", request->url(), command + ": " + response);
+                    logMessage("ESPAsyncWebServer", request->url(), command + ": " + response);
                     if (!status_switchboard_ignited) {
                         switchboardIgnition();
                         status_switchboard_ignited = true;
@@ -372,7 +394,7 @@ void startWebServer() {
                 }
                 serializeJson(json, response);
                 request->send(200, "application/json", response);
-                logToSerial("ESPAsyncWebServer", request->url(), command + ": " + response);
+                logMessage("ESPAsyncWebServer", request->url(), command + ": " + response);
             }
 
             else if (command == "reset-EEPROM") {
@@ -389,14 +411,15 @@ void startWebServer() {
                     json["rsp"] = "done";
                     serializeJson(json, response);
                     request->send(200, "application/json", response);
-                    logToSerial("ESPAsyncWebServer", request->url(), command + ": " + response);
+                    logMessage("ESPAsyncWebServer", request->url(), command + ": " + response);
+                    SSELogger.close();
                     ESP.restart();
                     xSemaphoreGive(xSemaphore);
                     return;
                 }
                 serializeJson(json, response);
                 request->send(200, "application/json", response);
-                logToSerial("ESPAsyncWebServer", request->url(), command + ": " + response);
+                logMessage("ESPAsyncWebServer", request->url(), command + ": " + response);
             }
 
             else if (command == "restart") {
@@ -411,15 +434,16 @@ void startWebServer() {
                     json["rsp"] = "done";
                     serializeJson(json, response);
                     request->send(200, "application/json", response);
-                    logToSerial("ESPAsyncWebServer", request->url(), command + ": " + response);
+                    logMessage("ESPAsyncWebServer", request->url(), command + ": " + response);
                     shutDown();
+                    SSELogger.close();
                     ESP.restart();
                     xSemaphoreGive(xSemaphore);
                     return;
                 }
                 serializeJson(json, response);
                 request->send(200, "application/json", response);
-                logToSerial("ESPAsyncWebServer", request->url(), command + ": " + response);
+                logMessage("ESPAsyncWebServer", request->url(), command + ": " + response);
             }
 
             else if (command == "force-restart") {
@@ -427,7 +451,8 @@ void startWebServer() {
                 json["rsp"] = "done";
                 serializeJson(json, response);
                 request->send(200, "application/json", response);
-                logToSerial("ESPAsyncWebServer", request->url(), command);
+                logMessage("ESPAsyncWebServer", request->url(), command);
+                SSELogger.close();
                 ESP.restart();
             }
 
@@ -443,14 +468,14 @@ void startWebServer() {
                     json["rsp"] = "done";
                     serializeJson(json, response);
                     request->send(200, "application/json", response);
-                    logToSerial("ESPAsyncWebServer", request->url(), command + ": " + response);
+                    logMessage("ESPAsyncWebServer", request->url(), command + ": " + response);
                     shutDown();
                     xSemaphoreGive(xSemaphore);
                     return;
                 }
                 serializeJson(json, response);
                 request->send(200, "application/json", response);
-                logToSerial("ESPAsyncWebServer", request->url(), command + ": " + response);
+                logMessage("ESPAsyncWebServer", request->url(), command + ": " + response);
             }
 
             else if (command == "server-logging-toggle") {
@@ -459,7 +484,7 @@ void startWebServer() {
                 json["rsp"] = "done";
                 serializeJson(json, response);
                 request->send(200, "application/json", response);
-                logToSerial("ESPAsyncWebServer", request->url(), command + ": " + response);
+                logMessage("ESPAsyncWebServer", request->url(), command + ": " + response);
             }
 
             else if (command == "server-logging-status") {
@@ -467,17 +492,18 @@ void startWebServer() {
                 json["rsp"] = webserver_logging;
                 serializeJson(json, response);
                 request->send(200, "application/json", response);
-                logToSerial("ESPAsyncWebServer", request->url(), command + ": " + response);
+                logMessage("ESPAsyncWebServer", request->url(), command + ": " + response);
             }
 
             /* status */
 
             else if (command == "status") {
                 if (xSemaphoreTake(xSemaphore_status, pdMS_TO_TICKS(50)) != pdTRUE) {
+                    json.clear();
                     json["rsp"] = "Error: mutex acquired";
                     serializeJson(json, response);
                     request->send(200, "application/json", response);
-                    logToSerial("ESPAsyncWebServer", request->url(), command + ": " + response);
+                    logMessage("ESPAsyncWebServer", request->url(), command + ": " + response);
                 } else {
                     // create json
                     json_status.clear();
@@ -489,14 +515,13 @@ void startWebServer() {
                     json_status["rsp"]["in-park"] = status_park;
                     json_status["rsp"]["finding-park"] = status_finding_park;
                     json_status["rsp"]["finding-zero"] = status_finding_zero;
-                    // TODO implement alert statuses
-                    // json_status["rsp"]["alert"][...] = ...;
+                    for (int i{}; i < 4; ++i) json_status["rsp"]["relay"]["list"][i] = KMPProDinoESP32.getRelayState(i);
                     json_status["rsp"]["relay"]["cw-motor"] = IS_MOVING_CW;
                     json_status["rsp"]["relay"]["ccw-motor"] = IS_MOVING_CCW;
                     json_status["rsp"]["relay"]["switchboard"] = KMPProDinoESP32.getRelayState(SWITCHBOARD);
+                    for (int i{}; i < 8; ++i) json_status["rsp"]["optoin"]["list"][i] = customOptoIn.getState(i);
                     json_status["rsp"]["optoin"]["auto"] = customOptoIn.getState(AUTO_O);
                     json_status["rsp"]["optoin"]["switchboard-status"] = SWITCHBOARD_STATUS;
-                    json_status["rsp"]["optoin"]["auto-ignition"] = AUTO_IGNITION;
                     json_status["rsp"]["optoin"]["ac-presence"] = AC_PRESENCE;
                     json_status["rsp"]["optoin"]["manual-cw-button"] = MAN_CW;
                     json_status["rsp"]["optoin"]["manual-ccw-button"] = MAN_CCW;
@@ -507,38 +532,43 @@ void startWebServer() {
                     response_status.clear();
                     serializeJson(json_status, response_status);
                     request->send(200, "application/json", response_status);
-                    if (webserver_logging) logToSerial("ESPAsyncWebServer", request->url(), command + ": " + response_status);
+                    if (webserver_logging) logMessage("ESPAsyncWebServer", request->url(), command + ": " + response_status);
                     xSemaphoreGive(xSemaphore_status);
                 }
             }
 
-            /* error */
-
             else {
                 json.clear();
-                json["rsp"] = "Error: unknown request";
+                json["rsp"] = "Error: unknown command";
                 serializeJson(json, response);
                 request->send(400, "application/json", response);
-                logToSerial("ESPAsyncWebServer", response);
+                logMessage("ESPAsyncWebServer", request->url(), response);
             }
         }
 
         else {
-            const char response[] {R"({"rsp":"Error: unknown params"})"};
+            const char response[] PROGMEM{R"({"rsp":"Error: unknown params"})"};
             request->send_P(400, "application/json", response);
-            logToSerial("ESPAsyncWebServer", request->url(), response);
+            logMessage("ESPAsyncWebServer", request->url(), response);
         }
     });
+
+    ///////////////
+    // SSE LOGGER
+
+    SSELogger.onConnect([](AsyncEventSourceClient *client) {
+        client->send("[SSELogging] Connection established!");
+    });
+
+    WebServer.addHandler(&SSELogger);
 
     //////////
     // OTHER
 
-    WebSerial.begin(&WebServer);
-
-    WebServer.onNotFound([] (AsyncWebServerRequest *request) {
-        const char response[] {R"({"rsp":"Error: not found"})"};
+    WebServer.onNotFound([](AsyncWebServerRequest *request) {
+        const char response[] PROGMEM{R"({"rsp":"Error: not found"})"};
         request->send_P(404, "application/json", response);
-        logToSerial("ESPAsyncWebServer", request->url(), response);
+        logMessage("ESPAsyncWebServer", request->url(), response);
     });
 
     //////////
@@ -547,8 +577,9 @@ void startWebServer() {
     // prepare status string
     response_status.reserve(JSON_S_SIZE);
 
-    // add header
+    // add default CORS header
     DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
 
+    // begin
     WebServer.begin();
 }

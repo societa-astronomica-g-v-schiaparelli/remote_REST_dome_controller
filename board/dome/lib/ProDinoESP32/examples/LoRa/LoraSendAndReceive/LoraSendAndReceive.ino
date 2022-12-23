@@ -48,7 +48,7 @@ void setup() {
 	digitalWrite(LoRaResetPin, HIGH);
 	delay(200);
 
-	SerialModem.begin(19200, SERIAL_8N1, LoRaRxPin, LoRaTxPin);
+	SerialModem.begin(19200, SERIAL_8N2, LoRaRxPin, LoRaTxPin);
 
 	// change this to your regional band (eg. US915, AS923, ...)
 	if (!modem.begin(EU868)) {
@@ -101,6 +101,21 @@ void loop() {
 		Serial.println("Error sending message :(");
 		Serial.println("(you may send a limited amount of messages per minute, depending on the signal strength");
 		Serial.println("it may vary from 1 message every couple of seconds to 1 message every minute)");
+
+		switch (err)
+		{
+		case -1: {Serial.println("timeout error"); }break;
+		case -2: {Serial.println("LORA_ERROR"); }break;
+		case -3: {Serial.println("LORA_ERROR_PARAM"); }break;
+		case -4: {Serial.println("LORA_ERROR_BUSY"); }break;
+		case -5: {Serial.println("LORA_ERROR_OVERFLOW"); }break;
+		case -6: {Serial.println("LORA_ERROR_NO_NETWORK"); }break;
+		case -7: {Serial.println("LORA_ERROR_RX"); }break;
+		case -8: {Serial.println("LORA_ERROR_UNKNOWN"); }break;
+		case -20: {Serial.println("packet exceeds max length"); }break;
+		default: Serial.println("Error???????"); break;
+
+		}
 	}
 	delay(1000);
 	if (!modem.available()) {

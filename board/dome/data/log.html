@@ -1,11 +1,11 @@
-/*
+<!--
 Remote REST dome controller
 https://github.com/societa-astronomica-g-v-schiaparelli/remote_REST_dome_controller
 
 Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 SPDX-License-Identifier: MIT
 Copyright (c) 2020-2022, Società Astronomica G. V. Schiaparelli <https://www.astrogeo.va.it/>.
-Authors: Paolo Galli <paolo97gll@gmail.com>
+Authors: Paolo Galli <paolo.galli@astrogeo.va.it>
          Luca Ghirotto <luca.ghirotto@astrogeo.va.it>
 
 Permission is hereby  granted, free of charge, to any  person obtaining a copy
@@ -25,42 +25,41 @@ AUTHORS  OR COPYRIGHT  HOLDERS  BE  LIABLE FOR  ANY  CLAIM,  DAMAGES OR  OTHER
 LIABILITY, WHETHER IN AN ACTION OF  CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-*/
+-->
 
-#include "WebSerial.h"
+<!DOCTYPE html>
+<html lang="en">
 
-WebSerialClass::WebSerialClass(const char *ws_address) {
-    _server = nullptr;
-    _ws = new AsyncWebSocket {ws_address};
-}
+<head>
+    <title>Dome controller (log)</title>
+    <link rel="stylesheet" href="css/style.css" type="text/css" media="screen">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="js-external/res.min.js"></script>
+    <script src="js-external/sa2.min.js"></script>
+    <link rel="stylesheet" href="css/sa2.min.css" type="text/css" media="screen">
+    <script src="js/log.js"></script>
+</head>
 
-WebSerialClass::~WebSerialClass() {
-    delete _ws;
-}
+<body onload="start();">
+    <div class="segment">
+        <h1>Dome controller</h1>
+        <h3>Log</h3>
+    </div>
 
-void WebSerialClass::begin(AsyncWebServer *server) {
-    _server = server;
-    _server->addHandler(_ws);
-}
+    <textarea id="text" class="log" rows="20" readonly></textarea>
 
-void WebSerialClass::end() {
-    _ws->enable(false);
-    _ws->closeAll();
-    _server->removeHandler(_ws);
-    _server = nullptr;
-}
+    <div class="row" style="width: 80%;margin-left: auto;margin-right: auto;">
+        <div class="column" style="margin: 0 16px;">
+            <input type="button" class="gray" value="Clean log" onclick="clearText();">
+        </div>
+        <div class="column" style="margin: 0 16px;">
+            <input id="follow-button" type="button" class="gray" value="Disable follow" onclick="toggleFollow();">
+        </div>
+        <div class="column" style="margin: 0 16px;">
+            <input id="disable-log-button" type="button" class="gray" value="Toggle 'status' command log" onclick="toggleLog();">
+        </div>
+    </div>
+</body>
 
-bool WebSerialClass::ready() const {
-    return (_server != nullptr) && (_ws->enabled());
-}
-
-void WebSerialClass::print(char *msg) const {
-    _ws->textAll(msg);
-}
-
-void WebSerialClass::println(char *msg) const {
-    _ws->textAll(msg);
-    _ws->textAll("\n");
-}
-
-WebSerialClass WebSerial {};
+</html>

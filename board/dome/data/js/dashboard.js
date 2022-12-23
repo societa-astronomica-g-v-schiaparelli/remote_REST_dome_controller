@@ -5,7 +5,7 @@ https://github.com/societa-astronomica-g-v-schiaparelli/remote_REST_dome_control
 Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 SPDX-License-Identifier: MIT
 Copyright (c) 2020-2022, Società Astronomica G. V. Schiaparelli <https://www.astrogeo.va.it/>.
-Authors: Paolo Galli <paolo97gll@gmail.com>
+Authors: Paolo Galli <paolo.galli@astrogeo.va.it>
          Luca Ghirotto <luca.ghirotto@astrogeo.va.it>
 
 Permission is hereby  granted, free of charge, to any  person obtaining a copy
@@ -28,10 +28,11 @@ SOFTWARE.
 */
 
 const DEBUG = false;
-const DEBUG_IP = "";
+var DEBUG_IP = "IP_address_here"; // TODO put your IP address here
 
 const UPDATE_TIME = 1000;
 var getStatus_interval;
+var connection_error_alert = false;
 
 function start() {
     setTimeout(getStatus, 0);
@@ -42,10 +43,17 @@ function getStatus() {
     const request = new Request(`${DEBUG ? `http://${DEBUG_IP}` : ""}/api?json=${encodeURIComponent(JSON.stringify({ "cmd": "status" }))}`);
     fetchTimeout(request)
         .then(rsp => {
+            if (connection_error_alert) {
+                connection_error_alert = false;
+                Toast.fire({
+                    icon: "success",
+                    title: "Connection restored"
+                });
+            }
             // update main buttons
             document.getElementById("current-status-box").style.opacity = 1;
             document.getElementById("current-status-man").style.display = !rsp["optoin"]["auto"] ? "" : "none";
-            document.getElementById("current-status").innerHTML = `Azimuth: ${rsp["dome-azimuth"]}°${rsp["movement-status"] ? `, moving to ${rsp["target-azimuth"]}°` : ""}`;
+            document.getElementById("current-status").innerText = `Azimuth: ${rsp["dome-azimuth"]}°${rsp["movement-status"] ? `, moving to ${rsp["target-azimuth"]}°` : ""}`;
             const disable_motion_buttons = !rsp["optoin"]["auto"];
             document.getElementById("az-target").disabled = disable_motion_buttons;
             document.getElementById("slew-to-az-button").disabled = disable_motion_buttons;
@@ -59,36 +67,48 @@ function getStatus() {
             document.getElementById("force-restart-button").disabled = false;
             document.getElementById("turn-off-button").disabled = disable_motion_buttons;
             document.getElementById("reset-EEPROM-button").disabled = false;
-            document.getElementById("webserial").disabled = false;
+            // document.getElementById("log").disabled = false;
             document.getElementById("infoButton").disabled = false;
             // update informations
-            document.getElementById("firmware-version").innerHTML = rsp["firmware-version"];
-            document.getElementById("uptime").innerHTML = rsp["uptime"];
-            document.getElementById("dome-azimuth").innerHTML = rsp["dome-azimuth"];
-            document.getElementById("target-azimuth").innerHTML = rsp["target-azimuth"];
-            document.getElementById("movement-status").innerHTML = rsp["movement-status"];
-            document.getElementById("in-park").innerHTML = rsp["in-park"];
-            document.getElementById("finding-park").innerHTML = rsp["finding-park"];
-            document.getElementById("finding-zero").innerHTML = rsp["finding-zero"];
-            document.getElementById("cw-motor").innerHTML = rsp["relay"]["cw-motor"];
-            document.getElementById("ccw-motor").innerHTML = rsp["relay"]["ccw-motor"];
-            document.getElementById("switchboard").innerHTML = rsp["relay"]["switchboard"];
-            document.getElementById("auto").innerHTML = rsp["optoin"]["auto"];
-            document.getElementById("switchboard-status").innerHTML = rsp["optoin"]["switchboard-status"];
-            document.getElementById("ac-presence").innerHTML = rsp["optoin"]["ac-presence"];
-            document.getElementById("manual-cw-button").innerHTML = rsp["optoin"]["manual-cw-button"];
-            document.getElementById("manual-ccw-button").innerHTML = rsp["optoin"]["manual-ccw-button"];
-            document.getElementById("manual-ignition").innerHTML = rsp["optoin"]["manual-ignition"];
-            document.getElementById("hostname").innerHTML = rsp["wifi"]["hostname"];
-            document.getElementById("mac-address").innerHTML = rsp["wifi"]["mac-address"];
+            document.getElementById("firmware-version").innerText = rsp["firmware-version"];
+            document.getElementById("uptime").innerText = rsp["uptime"];
+            document.getElementById("dome-azimuth").innerText = rsp["dome-azimuth"];
+            document.getElementById("target-azimuth").innerText = rsp["target-azimuth"];
+            document.getElementById("movement-status").innerText = rsp["movement-status"];
+            document.getElementById("in-park").innerText = rsp["in-park"];
+            document.getElementById("finding-park").innerText = rsp["finding-park"];
+            document.getElementById("finding-zero").innerText = rsp["finding-zero"];
+            document.getElementById("relay-list").innerText = "";
+            for (const el of rsp["relay"]["list"]) document.getElementById("relay-list").innerText += `${(el | 0)}`;
+            document.getElementById("cw-motor").innerText = rsp["relay"]["cw-motor"];
+            document.getElementById("ccw-motor").innerText = rsp["relay"]["ccw-motor"];
+            document.getElementById("switchboard").innerText = rsp["relay"]["switchboard"];
+            document.getElementById("optoin-list").innerText = "";
+            for (const el of rsp["optoin"]["list"]) document.getElementById("optoin-list").innerText += `${(el | 0)}`;
+            document.getElementById("auto").innerText = rsp["optoin"]["auto"];
+            document.getElementById("switchboard-status").innerText = rsp["optoin"]["switchboard-status"];
+            document.getElementById("ac-presence").innerText = rsp["optoin"]["ac-presence"];
+            document.getElementById("manual-cw-button").innerText = rsp["optoin"]["manual-cw-button"];
+            document.getElementById("manual-ccw-button").innerText = rsp["optoin"]["manual-ccw-button"];
+            document.getElementById("manual-ignition").innerText = rsp["optoin"]["manual-ignition"];
+            document.getElementById("hostname").innerText = rsp["wifi"]["hostname"];
+            document.getElementById("mac-address").innerText = rsp["wifi"]["mac-address"];
         })
         .catch(error => {
             console.trace(`An error has occured: ${error.message}`);
+            if (!connection_error_alert) {
+                connection_error_alert = true;
+                Toast2.fire({
+                    icon: "error",
+                    title: "Connection error",
+                    text: "Unable to connect to the controller."
+                });
+            }
             // update page with default
             // disable main buttons
             document.getElementById("current-status-box").style.opacity = 0.4;
             document.getElementById("current-status-man").style.display = "none";
-            document.getElementById("current-status").innerHTML = "State not available";
+            document.getElementById("current-status").innerText = "Status unavailable";
             document.getElementById("az-target").disabled = true;
             document.getElementById("slew-to-az-button").disabled = true;
             document.getElementById("slew-to-az-button").className = "gray";
@@ -101,60 +121,68 @@ function getStatus() {
             document.getElementById("force-restart-button").disabled = true;
             document.getElementById("turn-off-button").disabled = true;
             document.getElementById("reset-EEPROM-button").disabled = true;
-            document.getElementById("webserial").disabled = true;
+            // document.getElementById("log").disabled = true;
             document.getElementById("infoButton").disabled = true;
             // default info
-            document.getElementById("firmware-version").innerHTML = "ND";
-            document.getElementById("uptime").innerHTML = "ND";
-            document.getElementById("dome-azimuth").innerHTML = "ND";
-            document.getElementById("target-azimuth").innerHTML = "ND";
-            document.getElementById("movement-status").innerHTML = "ND";
-            document.getElementById("in-park").innerHTML = "ND";
-            document.getElementById("finding-park").innerHTML = "ND";
-            document.getElementById("finding-zero").innerHTML = "ND";
-            document.getElementById("cw-motor").innerHTML = "ND";
-            document.getElementById("ccw-motor").innerHTML = "ND";
-            document.getElementById("switchboard").innerHTML = "ND";
-            document.getElementById("auto").innerHTML = "ND";
-            document.getElementById("switchboard-status").innerHTML = "ND";
-            document.getElementById("ac-presence").innerHTML = "ND";
-            document.getElementById("manual-cw-button").innerHTML = "ND";
-            document.getElementById("manual-ccw-button").innerHTML = "ND";
-            document.getElementById("manual-ignition").innerHTML = "ND";
-            document.getElementById("hostname").innerHTML = "ND";
-            document.getElementById("mac-address").innerHTML = "ND";
+            document.getElementById("firmware-version").innerText = "ND";
+            document.getElementById("uptime").innerText = "ND";
+            document.getElementById("dome-azimuth").innerText = "ND";
+            document.getElementById("target-azimuth").innerText = "ND";
+            document.getElementById("movement-status").innerText = "ND";
+            document.getElementById("in-park").innerText = "ND";
+            document.getElementById("finding-park").innerText = "ND";
+            document.getElementById("finding-zero").innerText = "ND";
+            document.getElementById("relay-list").innerText = "ND";
+            document.getElementById("cw-motor").innerText = "ND";
+            document.getElementById("ccw-motor").innerText = "ND";
+            document.getElementById("switchboard").innerText = "ND";
+            document.getElementById("optoin-list").innerText = "ND";
+            document.getElementById("auto").innerText = "ND";
+            document.getElementById("switchboard-status").innerText = "ND";
+            document.getElementById("ac-presence").innerText = "ND";
+            document.getElementById("manual-cw-button").innerText = "ND";
+            document.getElementById("manual-ccw-button").innerText = "ND";
+            document.getElementById("manual-ignition").innerText = "ND";
+            document.getElementById("hostname").innerText = "ND";
+            document.getElementById("mac-address").innerText = "ND";
         });
 }
 
 function command(command) {
     // setup request
-    const moving_command = command == "slew-to-az";
     let json = { "cmd": command }
+    const moving_command = ["slew-to-az"].includes(command);
     if (moving_command) {
         const az = document.getElementById("az-target").value;
         document.getElementById("az-target").value = "";
         if (!az || az < 0 || az > 360) {
-            alert("Error: invalid azimuth.");
+            console.trace(`Invalid azimuth`);
+            Swal.fire({
+                icon: "error",
+                title: "Error",
+                text: `Invalid azimuth '${az}'.`
+            });
             return;
         }
-        clearInterval(getStatus_interval);
         json["az-target"] = az;
     }
-    const button = `${command}-button`;
-    document.getElementById(button).className = "orange";
     // make request
     const request = new Request(`${DEBUG ? `http://${DEBUG_IP}` : ""}/api?json=${encodeURIComponent(JSON.stringify(json))}`);
     fetchTimeout(request)
         .then(rsp => {
             if (rsp != "done") throw new Error(rsp);
-            if (!moving_command) document.getElementById(button).className = "green";
-            setTimeout(moving_command ? start : () => { document.getElementById(button).className = "gray"; }, 2000);
+            Toast.fire({
+                icon: "success",
+                title: "Command sent"
+            });
         })
         .catch(error => {
             console.trace(`An error has occured: ${error.message}`);
-            document.getElementById(button).className = "red";
-            setTimeout(moving_command ? start : () => { document.getElementById(button).className = "gray"; }, 2000);
-            alert(`Request "${command}" failed:\n\n${error.message}`);
+            Swal.fire({
+                icon: "error",
+                title: "Error",
+                text: "Failed to send the command."
+            });
         });
 }
 
@@ -178,3 +206,17 @@ async function fetchTimeout(url, ms = 3500, { signal, ...options } = {}) {
     const json = await response.json();
     return json["rsp"];
 }
+
+const Toast = Swal.mixin({
+    toast: true,
+    position: 'top-end',
+    showConfirmButton: false,
+    timer: 1500,
+    timerProgressBar: true,
+});
+
+const Toast2 = Swal.mixin({
+    toast: true,
+    position: 'top-end',
+    showConfirmButton: false
+});

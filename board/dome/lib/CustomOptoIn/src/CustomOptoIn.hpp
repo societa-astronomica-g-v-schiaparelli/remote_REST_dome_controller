@@ -1,11 +1,13 @@
-<!--
+/*
+CUSTOM OPTOIN CONTROLLER LIBRARY
+
 Remote REST dome controller
 https://github.com/societa-astronomica-g-v-schiaparelli/remote_REST_dome_controller
 
 Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 SPDX-License-Identifier: MIT
 Copyright (c) 2020-2022, Società Astronomica G. V. Schiaparelli <https://www.astrogeo.va.it/>.
-Authors: Paolo Galli <paolo97gll@gmail.com>
+Authors: Paolo Galli <paolo.galli@astrogeo.va.it>
          Luca Ghirotto <luca.ghirotto@astrogeo.va.it>
 
 Permission is hereby  granted, free of charge, to any  person obtaining a copy
@@ -25,43 +27,48 @@ AUTHORS  OR COPYRIGHT  HOLDERS  BE  LIABLE FOR  ANY  CLAIM,  DAMAGES OR  OTHER
 LIABILITY, WHETHER IN AN ACTION OF  CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
--->
+*/
 
-<!DOCTYPE html>
-<html lang="en">
+#ifndef _CUSTOM_OPTOIN_HPP_
+#define _CUSTOM_OPTOIN_HPP_
 
-<head>
-    <title>CM - Dome controller (webserial)</title>
-    <link rel="stylesheet" href="style.css" type="text/css" media="screen">
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=0.86">
-    <script src="webserial.js"></script>
-</head>
+#include <Arduino.h>
 
-<body onload="start();">
-    <div class="segment">
-        <h2>DOME NAME</h2>
-        <h1>Dome controller</h1>
-        <h3>WebSerial</h3>
-    </div>
+#include "KMPProDinoESP32.h"
 
-    <form>
-        <label id="msg" class="red" style="text-align: center;"><i>No communication.</i></label>
-    </form>
+enum OptoInC {
+    OptoInC1 = OptoIn::OptoIn1,
+    OptoInC2 = OptoIn::OptoIn2,
+    OptoInC3 = OptoIn::OptoIn3,
+    OptoInC4 = OptoIn::OptoIn4,
+    OptoInC5 = J14_11,
+    OptoInC6 = J14_10,
+    OptoInC7 = J14_12,
+    OptoInC8 = J14_9
+};
 
-    <textarea id="text" class="webserial" rows="20" readonly></textarea>
+class CustomOptoInClass {
+   public:
+    /**
+     * @brief Setup pins for custom optoin
+     */
+    void setup(const int input_type);
 
-    <div class="row" style="width: 80%;margin-left: auto;margin-right: auto;">
-        <div class="column">
-            <input type="button" class="gray" value="Clear log" onclick="clearText();">
-        </div>
-        <div class="column">
-            <input id="follow-button" type="button" class="gray" value="Disable follow" onclick="toggleFollow();">
-        </div>
-        <div class="column">
-            <input id="disable-log-button" type="button" class="gray" value="Toggle webserver log" onclick="toggleLog();">
-        </div>
-    </div>
-</body>
+    /**
+     * @brief Get OptoIn (optical input) status
+     * @param number The input number to be readed
+     * @return `true` if high, false if low
+     */
+    bool getState(const int optoIn_number);
 
-</html>
+    /**
+     * @brief Get OptoIn (optical input) status
+     * @param optoIn The input to be readed
+     * @return `true` if high, false if low
+     */
+    bool getState(const OptoInC optoIn);
+};
+
+extern CustomOptoInClass customOptoIn;
+
+#endif  // _CUSTOM_OPTOIN_HPP_

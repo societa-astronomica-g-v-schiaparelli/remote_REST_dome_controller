@@ -1,5 +1,5 @@
 /* 
- *  STANDALONE FIRMWARE UPDATE FOR MKR WAN 1300
+ *  STANDALONE FIRMWARE UPDATE FOR PRODINoESP32
  *  This sketch implements STM32 bootloader protocol
  *  It is based on stm32flash (mirrored here git@github.com:facchinm/stm32flash.git) 
  *  with as little modifications as possible.
@@ -32,7 +32,7 @@
 #define LoRaTxPin    J14_8
 #define LoRaBootPin  J14_11
 #define LoRaResetPin J14_12
-HardwareSerial SerialModem(2);
+HardwareSerial SerialLoRa(2);
 
 /* device globals */
 stm32_t    *stm    = NULL;
@@ -53,7 +53,7 @@ void setup() {
   };
 
   port.flags =  PORT_CMD_INIT | PORT_GVR_ETX | PORT_BYTE | PORT_RETRY;
-  port.dev   =  &SerialModem;
+  port.dev   =  &SerialLoRa;
   port.ops   =  &port_opts;
 
   assignCallbacks(&port);
@@ -73,8 +73,8 @@ void setup() {
 
   Serial.println("Type \"flash\" to start FW update");
   while (!Serial.find("flash")) delay(1000);
-  SerialModem.begin(115200, SERIAL_8E1, LoRaRxPin, LoRaTxPin);
-  SerialModem.flush();
+  SerialLoRa.begin(115200, SERIAL_8E1, LoRaRxPin, LoRaTxPin);
+  SerialLoRa.flush();
 
   stm = stm32_init(&port, 1);
   
@@ -295,19 +295,20 @@ void loop() {
 
   Serial.println("Flashing ok :)");
 
-  SerialModem.end();
+  SerialLoRa.end();
 
   digitalWrite(LoRaBootPin, LOW);
 
-  SerialModem.begin(19200, SERIAL_8N1, LoRaRxPin, LoRaTxPin);
+  SerialLoRa.begin(19200, SERIAL_8N2, LoRaRxPin, LoRaTxPin);
 
   digitalWrite(LoRaResetPin, HIGH);
   delay(200);
   digitalWrite(LoRaResetPin, LOW);
   delay(200);
   digitalWrite(LoRaResetPin, HIGH);
+  delay(200);
 
-  LoRaModem* modem = new LoRaModem(SerialModem);
+  LoRaModem* modem = new LoRaModem(SerialLoRa);
 	if (!modem->begin(EU868)) {
 		Serial.println("Failed to start module");
 		while (1);

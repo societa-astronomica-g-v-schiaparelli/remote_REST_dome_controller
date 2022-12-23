@@ -5,7 +5,7 @@ https://github.com/societa-astronomica-g-v-schiaparelli/remote_REST_dome_control
 Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 SPDX-License-Identifier: MIT
 Copyright (c) 2020-2022, Società Astronomica G. V. Schiaparelli <https://www.astrogeo.va.it/>.
-Authors: Paolo Galli <paolo97gll@gmail.com>
+Authors: Paolo Galli <paolo.galli@astrogeo.va.it>
          Luca Ghirotto <luca.ghirotto@astrogeo.va.it>
 
 Permission is hereby  granted, free of charge, to any  person obtaining a copy
@@ -31,88 +31,102 @@ SOFTWARE.
 <html lang="en">
 
 <head>
-    <title>CM - Dome controller</title>
-    <link rel="stylesheet" href="style.css" type="text/css" media="screen">
+    <title>Dome controller</title>
+    <link rel="stylesheet" href="css/style.css" type="text/css" media="screen">
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=0.86">
-    <script src="dashboard.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="js-external/sa2.min.js"></script>
+    <link rel="stylesheet" href="css/sa2.min.css" type="text/css" media="screen">
+    <script src="js/dashboard.js"></script>
 </head>
 
 <body onload="start();">
     <div class="segment">
-        <h2>DOME NAME</h2>
         <h1>Dome controller</h1>
         <h3>Dashboard</h3>
     </div>
 
-    <form>
-        <label><b>MAIN COMMANDS</b></label>
-        <div class="input-group">
-            <input id="az-target" class="gray" type="number" min="0" max="360" placeholder="000" value="" style="margin: 0 0 0 0;">
-            <input id="slew-to-az-button" class="gray" type="button" onclick="command('slew-to-az');" value="GOTO" style="width:100px; margin: 0 0 0 20px;">
-        </div>
-        <div class="input-group">
-            <input id="park-button" class="gray" type="button" onclick="command('park');" value="Park" style="margin: 0 0 0 0;">
-            <input id="abort-button" class="gray" type="button" onclick="command('abort');" value="Abort" style="margin: 0 0 0 20px;">
-        </div>
-        <div id="current-status-box" class="box" style="text-align: center;">
-            <ul>
-                <li id="current-status">State not available</li>
-                <li id="current-status-man" style="display: none;"><b>MANUAL mode</b></li>
-            </ul>
-        </div>
-    </form>
+    <div class="row">
 
-    <form>
-        <label><b>OTHER COMMANDS</b></label>
-        <input id="ignite-switchboard-button" class="gray" type="button" onclick="command('ignite-switchboard');" value="Ignite switchboard">
-        <input id="find-zero-button" class="gray" type="button" onclick="command('find-zero');" value="Find dome zero">
-        <input id="restart-button" class="gray" type="button" onclick="command('restart');" value="Restart">
-        <input id="force-restart-button" class="gray" type="button" onclick="command('force-restart');" value="Force restart">
-        <input id="turn-off-button" class="gray" type="button" onclick="command('turn-off');" value="Save state and halt">
-        <input id="reset-EEPROM-button" class="gray" type="button" onclick="command('reset-EEPROM');" value="Reset EEPROM">
-    </form>
-
-    <form>
-        <label><b>LOG AND INFO</b></label>
-        <input id="webserial" class="gray" type="button" onclick="window.open('/webserial');" value="WebSerial">
-        <input id="infoButton" class="gray" type="button" onclick="toggleInfo();" value="More informations">
-        <div id="infoBox" class="box" style="display: none;">
-            <ul>
-                <li>Global state</li>
-                <ul style="font-size: 14px;">
-                    <li>Firmware: <span id="firmware-version">ND</span></li>
-                    <li>Uptime: <span id="uptime">ND</span></li>
-                    <li>Dome azimuth: <span id="dome-azimuth">ND</span></li>
-                    <li>Target azimuth: <span id="target-azimuth">ND</span></li>
-                    <li>Movement status: <span id="movement-status">ND</span></li>
-                    <li>Park status: <span id="in-park">ND</span></li>
-                    <li>Finding park: <span id="finding-park">ND</span></li>
-                    <li>Finding zero: <span id="finding-zero">ND</span></li>
-                </ul>
-                <li>Relays</li>
-                <ul style="font-size: 14px;">
-                    <li>Clockwise motor: <span id="cw-motor">ND</span></li>
-                    <li>Counterclockwise motor: <span id="ccw-motor">ND</span></li>
-                    <li>Switchboard ignition: <span id="switchboard">ND</span></li>
-                </ul>
-                <li>Input</li>
-                <ul style="font-size: 14px;">
-                    <li>Automatic mode: <span id="auto">ND</span></li>
-                    <li>Switchboard: <span id="switchboard-status">ND</span></li>
-                    <li>AC presence: <span id="ac-presence">ND</span></li>
-                    <li>CW rot. button: <span id="manual-cw-button">ND</span></li>
-                    <li>CCW rot. button: <span id="manual-ccw-button">ND</span></li>
-                    <li>Ign. switchb. button: <span id="manual-ignition">ND</span></li>
-                </ul>
-                <li>Wi-Fi</li>
-                <ul style="font-size: 14px;">
-                    <li>Hostname: <span id="hostname">ND</span></li>
-                    <li>MAC: <span id="mac-address">ND</span></li>
-                </ul>
-            </ul>
+        <div class="column">
+            <form>
+                <label><b>MAIN COMMANDS</b></label>
+                <div class="input-group">
+                    <input id="az-target" class="gray" type="number" min="0" max="360" placeholder="000" value="" style="margin: 0 0 0 0;">
+                    <input id="slew-to-az-button" class="gray" type="button" onclick="command('slew-to-az');" value="GOTO" style="width:100px; margin: 0 0 0 20px;">
+                </div>
+                <div class="input-group">
+                    <input id="park-button" class="gray" type="button" onclick="command('park');" value="Park" style="margin: 0 0 0 0;">
+                    <input id="abort-button" class="gray" type="button" onclick="command('abort');" value="Abort" style="margin: 0 0 0 20px;">
+                </div>
+                <div id="current-status-box" class="box" style="text-align: center;">
+                    <ul>
+                        <li id="current-status">Status unavailable</li>
+                        <li id="current-status-man" style="display: none;"><b>MANUAL mode</b></li>
+                    </ul>
+                </div>
+            </form>
         </div>
-    </form>
+
+        <div class="column">
+            <form>
+                <label><b>OTHER COMMANDS</b></label>
+                <input id="ignite-switchboard-button" class="gray" type="button" onclick="command('ignite-switchboard');" value="Ignite switchboard">
+                <input id="find-zero-button" class="gray" type="button" onclick="command('find-zero');" value="Find dome zero">
+                <input id="restart-button" class="gray" type="button" onclick="command('restart');" value="Restart">
+                <input id="force-restart-button" class="gray" type="button" onclick="command('force-restart');" value="Force restart">
+                <input id="turn-off-button" class="gray" type="button" onclick="command('turn-off');" value="Save dome parameters">
+                <input id="reset-EEPROM-button" class="gray" type="button" onclick="command('reset-EEPROM');" value="Reset EEPROM">
+            </form>
+        </div>
+
+        <div class="column">
+            <form>
+                <label><b>LOGS AND INFORMATIONS</b></label>
+                <input id="log" class="gray" type="button" onclick="window.open('log')" value="Logs">
+                <input id="infoButton" class="gray" type="button" onclick="toggleInfo();" value="More informations">
+                <div id="infoBox" class="box" style="display: none;">
+                    <ul>
+                        <li>Global state</li>
+                        <ul style="font-size: 14px;">
+                            <li>Firmware: <span id="firmware-version">ND</span></li>
+                            <li>Uptime: <span id="uptime">ND</span></li>
+                            <li>Dome azimuth: <span id="dome-azimuth">ND</span></li>
+                            <li>Target azimuth: <span id="target-azimuth">ND</span></li>
+                            <li>Movement status: <span id="movement-status">ND</span></li>
+                            <li>Park status: <span id="in-park">ND</span></li>
+                            <li>Finding park: <span id="finding-park">ND</span></li>
+                            <li>Finding zero: <span id="finding-zero">ND</span></li>
+                        </ul>
+                        <li>Relays</li>
+                        <ul style="font-size: 14px;">
+                            <li>List: <span id="relay-list">ND</span></li>
+                            <li>CW motor: <span id="cw-motor">ND</span></li>
+                            <li>CCW motor: <span id="ccw-motor">ND</span></li>
+                            <li>Switchboard ign.: <span id="switchboard">ND</span></li>
+                        </ul>
+                        <li>Inputs</li>
+                        <ul style="font-size: 14px;">
+                            <li>List: <span id="optoin-list">ND</span></li>
+                            <li>Automatic mode: <span id="auto">ND</span></li>
+                            <li>Switchboard pwr.: <span id="switchboard-status">ND</span></li>
+                            <li>AC status: <span id="ac-presence">ND</span></li>
+                            <li>CW rot. button: <span id="manual-cw-button">ND</span></li>
+                            <li>CCW rot. button: <span id="manual-ccw-button">ND</span></li>
+                            <li>Swb. ignit. button: <span id="manual-ignition">ND</span></li>
+                        </ul>
+                        <li>Wi-Fi</li>
+                        <ul style="font-size: 14px;">
+                            <li>Hostname: <span id="hostname">ND</span></li>
+                            <li>MAC: <span id="mac-address">ND</span></li>
+                        </ul>
+                    </ul>
+                </div>
+            </form>
+        </div>
+
+    </div>
+
 </body>
 
 <script>
